@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Centre County Adaptive Reuse Inventory</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root {
+  --surface: #fcfcfb;
+  --surface-card: #ffffff;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-muted: #898781;
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11,11,11,0.08);
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s4: #eda100;
+  --s5: #e87ba4;
+  --cond-excellent: #2a78d6;
+  --cond-good: #1baf7a;
+  --cond-fair: #eda100;
+  --cond-poor: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #1a1a19;
+    --surface-card: #222221;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255,255,255,0.08);
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --s4: #c98500;
+    --s5: #d55181;
+    --cond-excellent: #3987e5;
+    --cond-good: #199e70;
+    --cond-fair: #c98500;
+    --cond-poor: #e34948;
+  }
+}
+:root[data-theme="dark"] {
+  --surface: #1a1a19;
+  --surface-card: #222221;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --ink-muted: #898781;
+  --grid: #2c2c2a;
+  --baseline: #383835;
+  --border: rgba(255,255,255,0.08);
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --s4: #c98500;
+  --s5: #d55181;
+  --cond-excellent: #3987e5;
+  --cond-good: #199e70;
+  --cond-fair: #c98500;
+  --cond-poor: #e34948;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+.subtitle {
+  color: var(--ink-2);
+  font-size: 0.85rem;
+  margin: 0 0 24px;
+  line-height: 1.4;
+}
+
+/* Stat tiles */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.tile {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+}
+.tile-label {
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+.tile-value {
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.tile-note {
+  font-size: 0.7rem;
+  color: var(--ink-2);
+  margin-top: 2px;
+}
+
+/* Map */
+#map {
+  height: 420px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin-bottom: 28px;
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 6px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+}
+.leaflet-popup-content { margin: 10px 14px; line-height: 1.5; }
+.popup-addr { font-weight: 600; margin-bottom: 4px; }
+.popup-row { color: #52514e; font-size: 12px; }
+
+/* Sections */
+.section {
+  margin-bottom: 32px;
+}
+.section h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--grid);
+}
+
+/* Chart row */
+.chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 600px) {
+  .chart-row { grid-template-columns: 1fr; }
+}
+.chart-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+}
+.chart-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.source-note {
+  font-size: 0.68rem;
+  color: var(--ink-muted);
+  margin-top: 6px;
+}
+
+/* Horizontal bars */
+.hbar { display: flex; flex-direction: column; gap: 5px; }
+.hbar-row { display: flex; align-items: center; gap: 8px; }
+.hbar-label {
+  font-size: 0.72rem;
+  color: var(--ink-2);
+  min-width: 105px;
+  text-align: right;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hbar-track {
+  flex: 1;
+  height: 14px;
+  background: var(--grid);
+  border-radius: 0 4px 4px 0;
+  position: relative;
+}
+.hbar-fill {
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  min-width: 2px;
+}
+.hbar-val {
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  margin-left: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 32px;
+}
+
+/* Stacked bar */
+.stacked-bar {
+  display: flex;
+  height: 26px;
+  border-radius: 4px;
+  overflow: hidden;
+  gap: 2px;
+}
+.stacked-seg {
+  height: 100%;
+  cursor: default;
+  transition: opacity 0.15s;
+}
+.stacked-seg:hover { opacity: 0.8; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--ink-2);
+}
+.legend-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Tables */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.data-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--baseline);
+}
+.data-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--grid);
+  color: var(--ink-2);
+  vertical-align: top;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table .overflow-wrap {
+  overflow-x: auto;
+}
+.cond-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.full-width { grid-column: 1 / -1; }
+
+/* Tooltip */
+.tip {
+  position: fixed;
+  pointer-events: none;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 9px;
+  font-size: 0.75rem;
+  color: var(--ink);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  z-index: 1000;
+  display: none;
+  max-width: 200px;
+}
+
+/* Map legend */
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 0.72rem;
+  color: var(--ink-2);
+}
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.map-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+footer {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--grid);
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+  line-height: 1.5;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Centre County Adaptive Reuse Inventory</h1>
+<p class="subtitle">Historic and underutilized property inventory. Data from PA-SHARE, Centre County GIS, and NRHP. Last updated Sep 19, 2026.</p>
+
+<div class="tiles" id="tiles"></div>
+
+<div class="map-legend">
+  <span class="map-legend-item"><span class="map-legend-dot" style="background:#2a78d6"></span> Excellent</span>
+  <span class="map-legend-item"><span class="map-legend-dot" style="background:#1baf7a"></span> Good</span>
+  <span class="map-legend-item"><span class="map-legend-dot" style="background:#eda100"></span> Fair</span>
+  <span class="map-legend-item"><span class="map-legend-dot" style="background:#d03b3b"></span> Poor/Damaged</span>
+  <span class="map-legend-item"><span class="map-legend-dot" style="background:#eb6834;border-radius:2px;transform:rotate(45deg);width:9px;height:9px"></span> Underutilized</span>
+  <span class="map-legend-item"><span class="map-legend-dot" style="background:#898781;width:8px;height:8px"></span> Vacant land</span>
+</div>
+<div id="map"></div>
+
+<div class="section">
+  <h2>Bellefonte Historic Survey (442 sites)</h2>
+  <div class="chart-row">
+    <div class="chart-card">
+      <div class="chart-title">Condition</div>
+      <div class="stacked-bar" id="cond-bar"></div>
+      <div class="legend" id="cond-legend"></div>
+      <p class="source-note">Centre County GIS, BellefonteHistoricSites/MapServer</p>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Architectural style</div>
+      <div class="hbar" id="bf-styles"></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>PA-SHARE County-wide (9,181 resources)</h2>
+  <div class="chart-row">
+    <div class="chart-card">
+      <div class="chart-title">Resources by municipality (top 15)</div>
+      <div class="hbar" id="ps-munis"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Eligibility status</div>
+      <div class="hbar" id="ps-elig"></div>
+      <p class="source-note">PA SHPO SearchLite API</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Properties Needing Attention</h2>
+  <div class="chart-row">
+    <div class="chart-card full-width">
+      <div class="chart-title">Bellefonte -- poor, damaged, or fire-damaged condition</div>
+      <div class="overflow-wrap">
+      <table class="data-table" id="poor-table">
+        <thead><tr><th>Address</th><th>Condition</th><th>Current use</th><th>Style</th><th>Year</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>County Underutilized Buildings (8)</h2>
+  <div class="chart-row">
+    <div class="chart-card full-width">
+      <div class="overflow-wrap">
+      <table class="data-table" id="ub-table">
+        <thead><tr><th>Name</th><th>Address</th><th>Municipality</th><th>Type</th><th>Sq ft</th><th>Zoning</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+      <p class="source-note">Centre County General Authority, Underutilized Site Inventory</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Vacant Lands (54 parcels)</h2>
+  <div class="chart-row">
+    <div class="chart-card">
+      <div class="chart-title">By municipality</div>
+      <div class="hbar" id="vl-munis"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">By zoning</div>
+      <div class="hbar" id="vl-zoning"></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Data sources: PA-SHARE (PHMC), Centre County GIS, National Register of Historic Places. Napolitano Lab, Penn State CEE.
+</footer>
+
+</div><!-- .wrap -->
+
+<div class="tip" id="tip"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+var MAP_DATA = {"bellefonte":[{"lat":40.91672,"lng":-77.782047,"addr":"217 W CURTIN ST","cond":"poor","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.916684,"lng":-77.782223,"addr":"223 W CURTIN ST","cond":"good","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.916516,"lng":-77.78157,"addr":"441 N SPRING ST","cond":"excellent","use":"residential, hotel","style":"Italianate","year":"unknown","name":"McCafferty House"},{"lat":40.916383,"lng":-77.781558,"addr":"435 N SPRING ST","cond":"fair","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.916259,"lng":-77.781493,"addr":"429 N SPRING ST","cond":"fair","use":"residential","style":"Queen Anne","year":"1865","name":"Benn Herr House"},{"lat":40.916115,"lng":-77.78145,"addr":"425 N SPRING ST","cond":"fair","use":"residential","style":"Queen Anne","year":"unknown","name":null},{"lat":40.915565,"lng":-77.781354,"addr":"207 W LINN ST","cond":"good","use":"residential","style":"2nd Empire","year":"unknown","name":"J.P.Harris House"},{"lat":40.915466,"lng":-77.781683,"addr":"217 W LINN ST","cond":"good","use":"residential","style":"2nd Empire","year":"1860","name":null},{"lat":40.915399,"lng":-77.781977,"addr":"227 W LINN ST","cond":"good","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.914976,"lng":-77.783302,"addr":"224 N WATER ST","cond":"fair","use":"commercial","style":null,"year":"unknown","name":null},{"lat":40.91495,"lng":-77.782625,"addr":"246 W LINN ST","cond":"good","use":"residential","style":"Dutch colonial","year":"1925","name":"Storch, Jay T. & Edna House"},{"lat":40.915042,"lng":-77.782188,"addr":"236 W LINN ST","cond":"good","use":"residential","style":"American 4 square","year":"1913","name":"Furst, James C. House"},{"lat":40.915139,"lng":-77.781802,"addr":"224 W LINN ST","cond":"good","use":"residential","style":"2nd Empire","year":"1875","name":"W. V. Hughes House"},{"lat":40.915173,"lng":-77.781651,"addr":"218 W LINN ST","cond":"fair","use":"residential","style":"Italianate","year":"unknown","name":null},{"lat":40.914868,"lng":-77.78105,"addr":"301 N SPRING ST","cond":"excellent","use":"office","style":"Romanesque Revival","year":"1894","name":"Armory, Col. W. Fred Reynolds"},{"lat":40.915761,"lng":-77.780898,"addr":"145 W LINN ST","cond":"excellent","use":"church","style":"Gothic Revival","year":"1840","name":"St. John's United Church of Christ"},{"lat":40.91567,"lng":-77.78066,"addr":"137 W LINN ST","cond":"excellent","use":"residential","style":"2nd Empire","year":"1864","name":null},{"lat":40.916227,"lng":-77.780191,"addr":"411 N ALLEGHENY ST","cond":"excellent","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.916785,"lng":-77.780049,"addr":"435 N ALLEGHENY ST","cond":"fair","use":"residential","style":"2nd Empire","year":"unknown","name":"A. S. Valentine"},{"lat":40.916213,"lng":-77.781064,"addr":"424 N SPRING ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":"St. John's Parsonage"},{"lat":40.916327,"lng":-77.781121,"addr":"428 N SPRING ST","cond":"good","use":"residential","style":"Queen Anne","year":"unknown","name":null},{"lat":40.916667,"lng":-77.780866,"addr":"134 W CURTIN ST","cond":"good","use":"residential","style":"Tudor Revival","year":"unknown","name":null},{"lat":40.916945,"lng":-77.781217,"addr":"137 W CURTIN ST","cond":"excellent","use":"residential","style":"Italianate","year":"1863","name":"Mary Stuart Steel Gordon House"},{"lat":40.916995,"lng":-77.781006,"addr":"129 W CURTIN ST","cond":"excellent","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.917033,"lng":-77.780827,"addr":"127 W CURTIN ST","cond":"good","use":"residential","style":"Gothic Revival","year":"1882","name":"Annie Natt House"},{"lat":40.907848,"lng":-77.782292,"addr":"407 WILLOWBANK ST","cond":"fair","use":"residential","style":"Queen Anne","year":"unknown","name":null},{"lat":40.907999,"lng":-77.782454,"addr":"381 PHOENIX AVE","cond":"fair","use":"residential, duplex","style":"Queen Anne","year":"unknown","name":null},{"lat":40.908105,"lng":-77.782549,"addr":"377 PHOENIX AVE","cond":"fair","use":"residential, duplex","style":"Queen Anne","year":"unknown","name":null},{"lat":40.908428,"lng":-77.781597,"addr":"219 S WATER ST","cond":"","use":"gas station","style":"commercial","year":null,"name":null},{"lat":40.909367,"lng":-77.78118,"addr":"181 S WATER ST","cond":"good","use":"municipal","style":"Colonial Revival","year":"1925","name":"Big Spring Pump House"},{"lat":40.909515,"lng":-77.779326,"addr":"311 S SPRING ST","cond":"good","use":"residential","style":"Late Victorian","year":"1890","name":"Steel, William L. & Harriet House"},{"lat":40.909355,"lng":-77.779901,"addr":"315  STONEY BATTER","cond":"good","use":"civic organization","style":"Dutch colonial","year":"1831","name":"Quaker Meeting House"},{"lat":40.909142,"lng":-77.77979,"addr":"317  STONEY BATTER","cond":"good","use":"residential, rental","style":"Dutch colonial","year":"unknown","name":"first ron master's house"},{"lat":40.909175,"lng":-77.780677,"addr":"186 S WATER ST","cond":"good","use":"residential, rental","style":"Vernacular","year":"1920","name":null},{"lat":40.909137,"lng":-77.780563,"addr":"188 S WATER ST","cond":"fair","use":"residential","style":"Early Republic","year":"1825","name":"Harris, James D. \"The Porch House\""},{"lat":40.908996,"lng":-77.78063,"addr":"194 S WATER ST","cond":"","use":"residential, duplex ","style":null,"year":null,"name":null},{"lat":40.908438,"lng":-77.781106,"addr":"216 S WATER ST","cond":"fair","use":"residential, rental","style":"Late Victorian","year":"unknown","name":null},{"lat":40.909866,"lng":-77.780912,"addr":"146 S WATER ST","cond":"fair","use":"commercial","style":"Vernacular","year":"unknown","name":null},{"lat":40.910198,"lng":-77.780852,"addr":"136 S WATER ST","cond":"fair","use":"vacant","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.91032,"lng":-77.780833,"addr":"126 S WATER ST","cond":"fair","use":"vacant","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.911336,"lng":-77.780605,"addr":"224 W HIGH ST","cond":"excellent","use":"commercial, residential","style":"Queen Anne","year":"1887","name":"Bush Arcade"},{"lat":40.911417,"lng":-77.779875,"addr":"206 W HIGH ST","cond":"good","use":"commercial, institutional","style":"Italianate","year":"1865","name":"Brisbin Home; later as Decker Automotive"},{"lat":40.911168,"lng":-77.779643,"addr":"113 S SPRING ST","cond":"good","use":"commercial, residential","style":"Queen Anne","year":"1869","name":"James Sommerville Residence"},{"lat":40.910875,"lng":-77.77967,"addr":"121 S SPRING ST","cond":"fair","use":"civic organization","style":"Italianate","year":"1864","name":"Bush, Daniel G. Home"},{"lat":40.910693,"lng":-77.779389,"addr":"135 S SPRING ST","cond":"fair","use":"commercial","style":"commercial","year":null,"name":"Brachbills Furniture"},{"lat":40.910535,"lng":-77.779321,"addr":"141 S SPRING ST","cond":"fair","use":"commercial","style":"commercial","year":null,"name":null},{"lat":40.909576,"lng":-77.779918,"addr":"275 W BISHOP ST","cond":"n/a","use":"educational","style":"Greek Revival","year":"1805","name":"Bellefonte Academy, destroyed by fire"},{"lat":40.910212,"lng":-77.779221,"addr":"203 S SPRING ST","cond":"fair","use":"commercial","style":"commercial","year":null,"name":null},{"lat":40.909856,"lng":-77.779174,"addr":"215 S SPRING ST","cond":"fair","use":"residential","style":"Italianate","year":"unknown","name":null},{"lat":40.910672,"lng":-77.778872,"addr":"141 W BISHOP ST","cond":"fair","use":"commercial","style":"commercial","year":null,"name":null},{"lat":40.910705,"lng":-77.778458,"addr":"127 W BISHOP ST","cond":"good","use":"restaurant","style":"commercial","year":null,"name":null},{"lat":40.910701,"lng":-77.778233,"addr":"125 W BISHOP ST","cond":"fair","use":"commercial, residential","style":"2nd Empire","year":"unknown","name":null},{"lat":40.910773,"lng":-77.777956,"addr":"113 W BISHOP ST","cond":"fair","use":"commercial, resident","style":"Late Victorian","year":"1900","name":null},{"lat":40.910791,"lng":-77.777843,"addr":"109 W BISHOP ST","cond":"fair","use":"commercial, resident","style":"Late Victorian","year":"1900","name":null},{"lat":40.910966,"lng":-77.777702,"addr":"135 S ALLEGHENY ST","cond":"fair","use":"commercial, resident.","style":"Late Victorian","year":"unknown","name":null},{"lat":40.911007,"lng":-77.777896,"addr":"131 S Allegheny","cond":"fair","use":"commercial, resident.","style":"Late Victorian","year":"1900","name":null},{"lat":40.911084,"lng":-77.777761,"addr":"127 S ALLEGHENY ST","cond":"fair","use":"commercial, resident.","style":"Late Victorian","year":"unknown","name":null},{"lat":40.911157,"lng":-77.777781,"addr":"125 S ALLEGHENY ST","cond":"good","use":"commercial, resident.","style":"Late Victorian","year":"1869","name":null},{"lat":40.911272,"lng":-77.777856,"addr":"123 S ALLEGHENY ST","cond":"fair","use":"commercial","style":"commercial","year":"unknown","name":null},{"lat":40.911809,"lng":-77.778019,"addr":"101 S ALLEGHENY ST","cond":"excellent","use":"commercial, residential","style":"Italiante","year":"1866","name":"Brockerhoff House Hotel"},{"lat":40.911815,"lng":-77.7783,"addr":"110 W HIGH ST","cond":"good","use":"commercial","style":"Art modern","year":"1935","name":"G.C.Murphy"},{"lat":40.911775,"lng":-77.778515,"addr":"120 W HIGH ST","cond":"excellent","use":"civic organization","style":"Italianate","year":"1868","name":"Governor Andrew Gregg Curtin Residence"},{"lat":40.911697,"lng":-77.778933,"addr":"130 W HIGH ST","cond":"good","use":"commercial, residential","style":"Classical Revival","year":"unknown","name":null},{"lat":40.91168,"lng":-77.778998,"addr":"132 W HIGH ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"unknown","name":"Sussman House"},{"lat":40.911644,"lng":-77.779235,"addr":"138 W HIGH ST","cond":"excellent","use":"commercial, residential","style":"Romanesque Revival","year":"1901","name":"Petrikin Hall"},{"lat":40.911194,"lng":-77.779276,"addr":"116 S SPRING ST","cond":"good","use":"commercial, residential","style":"Commercial","year":null,"name":null},{"lat":40.911588,"lng":-77.779384,"addr":"140 W HIGH ST","cond":"good","use":"commercial ","style":"Late Victorian","year":"1880","name":"Thomas R. Reynolds House"},{"lat":40.912019,"lng":-77.779486,"addr":"102 N SPRING ST","cond":"good","use":"commercial","style":"Dutch colonial","year":"1797","name":"James Dunlop House, at 141 W. High St."},{"lat":40.91192,"lng":-77.779301,"addr":"139 W HIGH ST","cond":"excellent","use":"commercial","style":"Georgian","year":"1797","name":"Diven House"},{"lat":40.911936,"lng":-77.779186,"addr":"137 W HIGH ST","cond":"excellent","use":"commercial, residential","style":"Georgian","year":"1797 circa","name":"Edmund Blanchard House"},{"lat":40.911959,"lng":-77.779077,"addr":"133 W HIGH ST","cond":"excellent","use":"commercial, residential","style":"Georgian","year":"1797-1800","name":"John Harris House"},{"lat":40.912007,"lng":-77.778971,"addr":"129 W HIGH ST","cond":"poor","use":"commercial","style":"Late Victorian","year":"unknown","name":null},{"lat":40.912044,"lng":-77.778808,"addr":"125 W HIGH ST","cond":"good","use":"civic organization","style":"modern","year":"1955","name":null},{"lat":40.913172,"lng":-77.778588,"addr":"137 N ALLEGHENY ST","cond":"good","use":"bank","style":"commercial","year":"1990's","name":null},{"lat":40.913849,"lng":-77.778959,"addr":"217 N ALLEGHENY ST","cond":"excellent","use":"commercial","style":"Colonial Revival","year":"unknown","name":"Bell Telephone Building"},{"lat":40.914001,"lng":-77.778932,"addr":"221 N ALLEGHENY ST","cond":"excellent","use":"residential","style":"American 4 square","year":"unknown","name":null},{"lat":40.915473,"lng":-77.779988,"addr":"100 W LINN ST","cond":"","use":"school","style":null,"year":null,"name":"Bellefonte Elementary School"},{"lat":40.913898,"lng":-77.78021,"addr":"232 N SPRING ST","cond":"good","use":"residential ","style":"Late Victorian","year":"unknown","name":null},{"lat":40.913602,"lng":-77.780165,"addr":"218 N SPRING ST","cond":"good","use":"residential, duplex","style":"Italianate","year":"unknown","name":null},{"lat":40.913546,"lng":-77.78014,"addr":"214 N SPRING ST","cond":"good","use":"residential, duplex","style":"Italianate","year":"unknown","name":null},{"lat":40.913444,"lng":-77.780056,"addr":"208 N SPRING ST","cond":"good","use":"residential, duplex","style":"Italian Renaissance","year":"1935","name":"Moore, Horatio House"},{"lat":40.91318,"lng":-77.77991,"addr":"139 1/2 W HOWARD ST","cond":"good","use":"funeral home","style":"Queen Anne","year":"unknown","name":null},{"lat":40.913249,"lng":-77.779649,"addr":"139 W HOWARD ST","cond":"good","use":"residential, rental","style":"Late Victorian","year":"unknown","name":"firehouse"},{"lat":40.912865,"lng":-77.779404,"addr":"128 W HOWARD ST","cond":"good","use":"church","style":"Gothic Revival","year":"1875","name":"Methodist Church"},{"lat":40.912496,"lng":-77.779643,"addr":"126 N SPRING ST","cond":"good","use":"residential, duplex ","style":"2nd Empire","year":"1899","name":"Harris - Gryctko House"},{"lat":40.911792,"lng":-77.779856,"addr":"201 W HIGH ST","cond":"excellent","use":"commercial, residential","style":"High Victorian Gothic","year":"1881","name":"Centre County Banking Co. ; The Manse"},{"lat":40.911757,"lng":-77.780023,"addr":"211 W HIGH ST","cond":"fair","use":"commercial","style":"commercial","year":"1904","name":null},{"lat":40.911707,"lng":-77.780432,"addr":"219 W HIGH ST","cond":"fair","use":"commercial, residential","style":"Italianate","year":"1860's -80's","name":"Old Bellefonte Hardware Building"},{"lat":40.911983,"lng":-77.779866,"addr":"105 N SPRING ST","cond":"fair","use":"commercial","style":"Queen Anne","year":"unknown","name":null},{"lat":40.912059,"lng":-77.779911,"addr":"107 N SPRING ST","cond":"fair","use":"residential ","style":"Italianate","year":"unknown","name":null},{"lat":40.912509,"lng":-77.780099,"addr":"127 N SPRING ST","cond":"good","use":"residential ","style":"Late Victorian","year":"unknown","name":null},{"lat":40.912594,"lng":-77.780137,"addr":"133 N SPRING ST","cond":"good","use":"residential ","style":"Italianate","year":"unknown","name":null},{"lat":40.912694,"lng":-77.780174,"addr":"137 N SPRING ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.913029,"lng":-77.780582,"addr":"203 N SPRING ST","cond":"good","use":"church","style":"Gothic Revival","year":"1868","name":"Presbyterian Church"},{"lat":40.912604,"lng":-77.780676,"addr":"130 N WATER ST","cond":"fair","use":"commercial","style":"Vernacular","year":"unknown","name":"Beezer's Garage"},{"lat":40.913451,"lng":-77.780485,"addr":"217 N SPRING ST","cond":"fair","use":"residential, Hotel","style":"Late Victorian","year":"unknown","name":null},{"lat":40.913284,"lng":-77.781129,"addr":"150 N WATER ST","cond":"fair","use":"industrial","style":"industrial","year":"1920","name":"Eagle Silk Mill"},{"lat":40.913586,"lng":-77.780516,"addr":"223 N SPRING ST","cond":"excellent","use":"residential","style":"Gothic Revival","year":"unknown","name":"Hastings Residence"},{"lat":40.913776,"lng":-77.78059,"addr":"231 N SPRING ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.913948,"lng":-77.780614,"addr":"237 N SPRING ST","cond":"fair","use":"residential, office","style":"Vernacular","year":"unknown","name":null},{"lat":40.914259,"lng":-77.7807,"addr":"249 N SPRING ST","cond":"fair","use":"residential, duplex ","style":"Italianate","year":"1850","name":null},{"lat":40.914167,"lng":-77.781147,"addr":"247 1/2 N SPRING ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.914379,"lng":-77.780813,"addr":"251 N SPRING ST","cond":"fair","use":"residential, duplex","style":"Colonial Revival","year":"1912","name":null},{"lat":40.914489,"lng":-77.780844,"addr":"255 N SPRING ST","cond":"fair","use":"residential, duplex ","style":"Colonial Revival","year":"1912","name":null},{"lat":40.914595,"lng":-77.780887,"addr":"259 N SPRING ST","cond":"fair","use":"residential, duplex","style":"Colonial Revival","year":"1912","name":null},{"lat":40.912218,"lng":-77.778186,"addr":"101 N ALLEGHENY ST","cond":"excellent","use":"commercial, residential","style":"Italianate","year":"1872","name":"First National Bank Building"},{"lat":40.91226,"lng":-77.778208,"addr":"103 N ALLEGHENY ST","cond":"excellent","use":"commercial, residential","style":"High ecclectic Victorian","year":"1888","name":"Crider Exchange"},{"lat":40.913452,"lng":-77.7838,"addr":"360 W LAMB ST","cond":"good","use":"residential, multi unit","style":"Late Victorian","year":"1875","name":null},{"lat":40.911965,"lng":-77.782639,"addr":"102 N THOMAS ST","cond":"good","use":"residential, duplex","style":"Federal","year":"1840 circa","name":"Williams; Ficarro Houses"},{"lat":40.911907,"lng":-77.782505,"addr":"415 W HIGH ST","cond":"excellent","use":"residential, duplex","style":"Georgian","year":"1837","name":"Williams, Ephiam; Hudson-Williams House"},{"lat":40.912214,"lng":-77.782098,"addr":"113 N POTTER ST","cond":"good","use":"residential, 4 units","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.91234,"lng":-77.782702,"addr":"116 N THOMAS ST","cond":"fair","use":"commercial","style":"Vernacular","year":"unknown","name":null},{"lat":40.912553,"lng":-77.782426,"addr":"125 N POTTER ST","cond":"good","use":"residential, 4 units","style":null,"year":"unknown","name":null},{"lat":40.911328,"lng":-77.781854,"addr":"320 W HIGH ST","cond":"excellent","use":"train station","style":"Queen Anne","year":"1888-1889","name":"Pennsylvania R.R. Passenger Station"},{"lat":40.912681,"lng":-77.781778,"addr":"129 DUNLAP ST","cond":"fair","use":"industrial","style":"industrial","year":"unknown","name":null},{"lat":40.91177,"lng":-77.781513,"addr":"325 W HIGH ST","cond":"fair","use":"commercial","style":"Vernacular","year":"unknown","name":null},{"lat":40.911329,"lng":-77.783982,"addr":"121 ST PAUL ST","cond":"good","use":"assembly","style":"Gothic Revival","year":"1859-1910","name":"AME Church"},{"lat":40.910626,"lng":-77.783191,"addr":"145 S THOMAS ST","cond":"good","use":"residential, duplex ","style":"Colonial Revival","year":"1920","name":null},{"lat":40.9106,"lng":-77.783538,"addr":"148  ST PAUL ST","cond":"good","use":"residential","style":"Colonial Revival","year":"1920","name":null},{"lat":40.910773,"lng":-77.783215,"addr":"141 S THOMAS ST","cond":"fair","use":"residential","style":"Gothic Revival","year":"1868","name":null},{"lat":40.910842,"lng":-77.783207,"addr":"139 S THOMAS ST","cond":"good","use":"residential","style":"Gothic Revival","year":"1868","name":null},{"lat":40.911007,"lng":-77.78321,"addr":"133 S THOMAS ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.911284,"lng":-77.783201,"addr":"123 S THOMAS ST","cond":"fair","use":"residential, duplex","style":"Queen Anne","year":"1850","name":"Solomon Derr House"},{"lat":40.911473,"lng":-77.783229,"addr":"117 S THOMAS ST","cond":"fair","use":"residential, duplex","style":"Late Victorian","year":"1868","name":"Bush - S. Thomas St. Dwellings"},{"lat":40.911621,"lng":-77.783223,"addr":"107 S THOMAS ST","cond":"good","use":"residential, duplex","style":"Late Victorian","year":"unknown","name":"Bush - S. Thomas St. Dwellings"},{"lat":40.911691,"lng":-77.782905,"addr":"424 W HIGH ST","cond":"fair","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.911469,"lng":-77.782875,"addr":"112 S THOMAS ST","cond":"good","use":"residential","style":"Queen Anne","year":"1900","name":null},{"lat":40.91163,"lng":-77.782518,"addr":"414 W HIGH ST","cond":"good","use":"residential","style":"Queen Anne","year":"1880","name":null},{"lat":40.911661,"lng":-77.782625,"addr":"416 W HIGH ST","cond":"good","use":"residential","style":"Queen Anne","year":"1900","name":null},{"lat":40.911678,"lng":-77.782758,"addr":"420 W HIGH ST","cond":"fair","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.915884,"lng":-77.783905,"addr":"299 W LINN ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"unknown","name":null},{"lat":40.915686,"lng":-77.783526,"addr":"287 W LINN ST","cond":"good","use":"residential","style":"Dutch colonial","year":"unknown","name":null},{"lat":40.916101,"lng":-77.783351,"addr":"246 W CURTIN ST","cond":"good","use":"residnetial","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.916224,"lng":-77.782884,"addr":"234 W CURTIN ST","cond":"good","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.916298,"lng":-77.782542,"addr":"226 W CURTIN ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.916333,"lng":-77.782402,"addr":"224 W CURTIN ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.915378,"lng":-77.78216,"addr":"231 W LINN ST","cond":"excellent","use":"residential","style":"Italianate","year":"unknown","name":null},{"lat":40.915315,"lng":-77.782385,"addr":"237 W LINN ST","cond":"excellent","use":"residential","style":"Italianate","year":"1864","name":"Charles M. McCafferty Residence"},{"lat":40.915306,"lng":-77.782779,"addr":"245 W LINN ST","cond":"good","use":"residential","style":"Dutch colonial","year":"unknown","name":null},{"lat":40.914552,"lng":-77.782387,"addr":"202 N WATER ST","cond":"fair","use":"commercial","style":null,"year":"unknown","name":null},{"lat":40.914603,"lng":-77.782047,"addr":"241 W LAMB ST","cond":"fair","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.91512,"lng":-77.781967,"addr":"230 W LINN ST","cond":"fair","use":"residential","style":"Gothic Revival","year":"unknown","name":"A. J. Cook House"},{"lat":40.914669,"lng":-77.781622,"addr":"225 W LAMB ST","cond":"fair","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.915203,"lng":-77.781478,"addr":"212 W LINN ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.915251,"lng":-77.781241,"addr":"204 W LINN ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"1887","name":"J.H. Lingle House"},{"lat":40.915773,"lng":-77.780397,"addr":"129 W LINN ST","cond":"excellent","use":"residential","style":"Italianate","year":"1864","name":null},{"lat":40.916598,"lng":-77.781209,"addr":"440 N SPRING ST","cond":"excellent","use":"residential","style":"Tudor Revival","year":"1936","name":"Shirck, James C. Model Home"},{"lat":40.916712,"lng":-77.780662,"addr":"126 W CURTIN ST","cond":"poor","use":"residential","style":"Queen Anne","year":"unknown","name":null},{"lat":40.916454,"lng":-77.781179,"addr":"434 N SPRING ST","cond":"fair","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.91709,"lng":-77.780497,"addr":"111 W CURTIN ST","cond":"fair","use":"residential","style":"ranch","year":"unknown","name":null},{"lat":40.917163,"lng":-77.780145,"addr":"105 W CURTIN ST","cond":"good","use":"residential","style":"ranch","year":"unknown","name":null},{"lat":40.915516,"lng":-77.783397,"addr":"245 W LINN ST","cond":"good","use":"residential","style":"Italianate","year":"unknown","name":null},{"lat":40.908825,"lng":-77.78062,"addr":"204 S WATER ST","cond":"fair","use":"residential, duplex ","style":"Second Empire","year":"1866-1867","name":"Todd, John & Caroline House"},{"lat":40.910746,"lng":-77.778119,"addr":"121 W BISHOP ST","cond":"fair","use":"commercial, residential","style":"Late Victorian","year":"unknown","name":"Omar Bar"},{"lat":40.910895,"lng":-77.777668,"addr":"139 S ALLEGHENY ST","cond":"good","use":"commercial, resident","style":"Late Victorian","year":"1885","name":null},{"lat":40.914203,"lng":-77.778973,"addr":"227 N ALLEGHENY ST","cond":"excellent","use":"residential","style":"American 4 square","year":"1907","name":"Munson, Sarah E. Gephart House"},{"lat":40.914326,"lng":-77.778977,"addr":"233 N ALLEGHENY ST","cond":"good","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.914465,"lng":-77.779026,"addr":"239 N ALLEGHENY ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"1891","name":"Siebert, James L. House"},{"lat":40.914606,"lng":-77.779039,"addr":"247 N ALLEGHENY ST","cond":"fair","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.914756,"lng":-77.779175,"addr":"251 N ALLEGHENY ST","cond":"excellent","use":"residential","style":"Italianate","year":"1890","name":null},{"lat":40.914168,"lng":-77.780339,"addr":"250 N SPRING ST","cond":"good","use":"residential, rental","style":"Queen Anne","year":"1893","name":"Storm, William & Ella House"},{"lat":40.913827,"lng":-77.779758,"addr":"130 W BURROWS ST","cond":"","use":"residential ","style":"Late Victorian","year":"unknown","name":null},{"lat":40.912383,"lng":-77.780022,"addr":"125 N SPRING ST","cond":"fair","use":"civic organization","style":"commercial","year":"unknown","name":null},{"lat":40.914108,"lng":-77.780679,"addr":"245 N SPRING ST","cond":"fair","use":"residential","style":"Queen Anne","year":"unknown","name":null},{"lat":40.913948,"lng":-77.781399,"addr":"245 1/2 N SPRING ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.912968,"lng":-77.783183,"addr":"141 N THOMAS ST","cond":"poor","use":"res. multi unit, vacant","style":"no style","year":"1920","name":null},{"lat":40.912802,"lng":-77.78315,"addr":"137 N THOMAS ST","cond":"fair","use":"residential, duplex","style":"Gothic Revival","year":"1895","name":null},{"lat":40.912729,"lng":-77.78311,"addr":"135 N THOMAS ST","cond":"fair","use":"residential","style":"Gothic Revival","year":"1890","name":null},{"lat":40.912452,"lng":-77.783031,"addr":"125 N THOMAS ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.912303,"lng":-77.783043,"addr":"117 N THOMAS ST","cond":"fair","use":"residential","style":"Italianate","year":"unknown","name":null},{"lat":40.912162,"lng":-77.782935,"addr":"109 N THOMAS ST","cond":"fair","use":"residential","style":"Italianate","year":"1868","name":null},{"lat":40.911993,"lng":-77.782953,"addr":"501 W HIGH ST","cond":"good","use":"residential, duplex","style":"no style","year":"1950's ","name":null},{"lat":40.910927,"lng":-77.783213,"addr":"137 S THOMAS ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"1890","name":null},{"lat":40.911157,"lng":-77.78318,"addr":"129 S THOMAS ST","cond":"good","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.91176,"lng":-77.783212,"addr":"101 S THOMAS ST","cond":"good","use":"residential, duplex ","style":"Late Victorian","year":"1868","name":"Bush - S. Thomas St. Dwellings"},{"lat":40.914921,"lng":-77.778502,"addr":"254 N ALLEGHENY ST","cond":"excellent","use":"residential","style":"Neoclassical","year":"1860","name":"Hastings Mansion, Governor's Mansion"},{"lat":40.9145,"lng":-77.778644,"addr":"240 N ALLEGHENY ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.914399,"lng":-77.778574,"addr":"238 N ALLEGHENY ST","cond":"good","use":"residential","style":"Greek Revival","year":"unknown","name":"Edward Graham Residence"},{"lat":40.9143,"lng":-77.778442,"addr":"228 N ALLEGHENY ST","cond":"good","use":"residential","style":"Queen Anne","year":"1891","name":"Wilkinson, William H. House"},{"lat":40.9141,"lng":-77.778341,"addr":"222 N ALLEGHENY ST","cond":"excellent","use":"residential","style":"Greek Revival","year":"1843","name":"James T. Hale House"},{"lat":40.91384,"lng":-77.778267,"addr":"214 N ALLEGHENY ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"1899","name":"Joseph Ceader Residence"},{"lat":40.913659,"lng":-77.778139,"addr":"200 N ALLEGHENY ST","cond":"good","use":"library","style":"modern","year":null,"name":null},{"lat":40.913658,"lng":-77.777738,"addr":"117 W HOWARD ST","cond":"fair","use":"residential","style":"Queen Anne","year":"unknown","name":null},{"lat":40.913737,"lng":-77.777617,"addr":"121 E HOWARD ST","cond":"fair","use":"civic organization","style":"Georgian","year":"unknown","name":"American Legion Post 33"},{"lat":40.913428,"lng":-77.777532,"addr":"118 E HOWARD ST","cond":"good","use":"commercial, retail","style":"Italianate","year":"1897","name":"Logan Engine House"},{"lat":40.913219,"lng":-77.77804,"addr":"132 N ALLEGHENY ST","cond":"excellent","use":"government, post office","style":"Classical Revival","year":"1935","name":"U.S.Post Office"},{"lat":40.912999,"lng":-77.778039,"addr":"124 N ALLEGHENY ST","cond":"excellent","use":"commercial","style":"Georgian","year":"unknown","name":null},{"lat":40.912829,"lng":-77.777975,"addr":"118 N ALLEGHENY ST","cond":"good","use":"commercial, residential","style":"Queen Anne","year":"unknown","name":null},{"lat":40.912693,"lng":-77.777909,"addr":"114 N ALLEGHENY ST","cond":"fair","use":"commercial, residential","style":"commercial","year":"1923","name":"Keystone Gazette Building"},{"lat":40.912607,"lng":-77.777891,"addr":"108 N ALLEGHENY ST","cond":"fair","use":"commercial, residential","style":"commercial","year":"1923","name":"Keystone Gazette Building"},{"lat":40.912522,"lng":-77.777871,"addr":"104 N ALLEGHENY ST","cond":"fair","use":"commercial, residential","style":"commercial","year":"1923","name":"Keystone Gazette Building"},{"lat":40.912488,"lng":-77.777568,"addr":"111 E HIGH ST","cond":"excellent","use":"commercial, residential","style":"Italianate","year":"1865","name":"Attorney's Row (107-115)"},{"lat":40.912515,"lng":-77.777416,"addr":"115 E HIGH ST","cond":"good","use":"commercial, residential","style":"Italianate","year":"1861-1880","name":"Attorney's Row (107-115)"},{"lat":40.912534,"lng":-77.777154,"addr":"119 E HIGH ST","cond":"good","use":"residential","style":"2nd Empire","year":"unknown","name":null},{"lat":40.912579,"lng":-77.776984,"addr":"125 E HIGH ST","cond":"good","use":"residential","style":"Italianate","year":"unknown","name":"also 125rear E. Pike Alley"},{"lat":40.912598,"lng":-77.776887,"addr":"127 E HIGH ST","cond":"good","use":"residential","style":"2nd Empire","year":"unknown","name":"also 134 E. Pike Alley"},{"lat":40.912736,"lng":-77.776214,"addr":"207 E HIGH ST","cond":"fair","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.912768,"lng":-77.77611,"addr":"211 E HIGH ST","cond":"fair","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.912797,"lng":-77.775988,"addr":"215 E HIGH ST","cond":"fair","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.913143,"lng":-77.776008,"addr":"220 E PIKE ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.912838,"lng":-77.775746,"addr":"223 E HIGH ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.912922,"lng":-77.775623,"addr":"226 E HIGH ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.912879,"lng":-77.775497,"addr":"231 E HIGH ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.912906,"lng":-77.775385,"addr":"235 E HIGH ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.913275,"lng":-77.775357,"addr":"105 N RIDGE ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.914078,"lng":-77.774529,"addr":"324 E HOWARD ST","cond":"fair","use":"residential","style":"Queen Anne","year":"1879","name":"Glenn, Margaret House"},{"lat":40.914096,"lng":-77.774453,"addr":"326 E HOWARD ST","cond":"fair","use":"residential","style":null,"year":"unknown","name":null},{"lat":40.916729,"lng":-77.774121,"addr":"384 E LINN ST","cond":"good","use":"residential","style":"Italianate","year":"1888","name":"Richard, Isabella House"},{"lat":40.91698,"lng":-77.772881,"addr":"408 E LINN ST","cond":"fair","use":"residential","style":"ranch","year":"unknown","name":null},{"lat":40.917035,"lng":-77.772536,"addr":"412 E LINN ST","cond":"excellent","use":"residential","style":"French Renaissance","year":"unknown","name":"architect: Anna W. Kechline"},{"lat":40.917098,"lng":-77.772305,"addr":"420 E LINN ST","cond":"fair","use":"residential","style":"Dutch colonial","year":"unknown","name":null},{"lat":40.917158,"lng":-77.772055,"addr":"430 E LINN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.917413,"lng":-77.770849,"addr":"460 E LINN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.917346,"lng":-77.771165,"addr":"454 E LINN ST","cond":"good","use":"residential","style":"ranch","year":"unknown","name":null},{"lat":40.917261,"lng":-77.771509,"addr":"448 E LINN ST","cond":"good","use":"residential","style":"ranch","year":"unknown","name":null},{"lat":40.917217,"lng":-77.771756,"addr":"442 E LINN ST","cond":"fair","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.917006,"lng":-77.773083,"addr":"402 E LINN ST","cond":"fair","use":"residential","style":"I-House vernacular","year":"1875","name":"Monroe Armor House"},{"lat":40.916864,"lng":-77.773399,"addr":"396 E LINN ST","cond":"","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.91677,"lng":-77.773943,"addr":"390 E LINN ST","cond":"good","use":"residential","style":" ","year":"1888","name":null},{"lat":40.912209,"lng":-77.777302,"addr":"102 S ALLEGHENY ST","cond":"excellent","use":"government","style":"Greek Revival","year":"1805","name":"Centre County Court House"},{"lat":40.917,"lng":-77.774492,"addr":"351 E LINN ST","cond":"excellent","use":"residential","style":"Italianate","year":"1875","name":"Morris Cowdrick House"},{"lat":40.917692,"lng":-77.779656,"addr":"518 N ALLEGHENY ST","cond":"excellent","use":"residential","style":"French Renaissance","year":"1939","name":"Driscoll, Betty Orvis-Harvey House"},{"lat":40.917353,"lng":-77.779466,"addr":"105 E CURTIN ST","cond":"fair","use":"residential","style":"2nd Empire","year":"1870","name":"Robert Valentine"},{"lat":40.917432,"lng":-77.779055,"addr":"121 E CURTIN ST","cond":"good","use":"residential","style":"French Renaissance","year":"1935","name":"Driscoll, Betty Orvis-Harvey House"},{"lat":40.917507,"lng":-77.778742,"addr":"127 E CURTIN ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"1883","name":"Curtin, Andrew Gregg Jr. House"},{"lat":40.917567,"lng":-77.778487,"addr":"135 E CURTIN ST","cond":"fair","use":"residential","style":"Shingle Style","year":"1895","name":"Meyer, J.C. House"},{"lat":40.917614,"lng":-77.778299,"addr":"143 E CURTIN ST","cond":"excellent","use":"residential","style":"Shingle Style","year":"1897","name":"Ward, Dr. Joseph E. House"},{"lat":40.917639,"lng":-77.778146,"addr":"153 E CURTIN ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"1890","name":"Joseph Brothers & Co. "},{"lat":40.917682,"lng":-77.777994,"addr":"159 E CURTIN ST","cond":"good","use":"residential","style":"Queen Anne","year":"1890","name":"Joseph Brothers & Co. "},{"lat":40.917706,"lng":-77.777798,"addr":"163 E CURTIN ST","cond":"good","use":"residential","style":"Queen Anne","year":"1890","name":"Joseph Brothers & Co. "},{"lat":40.917781,"lng":-77.777417,"addr":"177 E CURTIN ST","cond":"good","use":"residential","style":"Dutch colonial","year":"1916","name":"George P. Bible Home"},{"lat":40.91787,"lng":-77.777139,"addr":"191 E CURTIN ST","cond":"good","use":"residential","style":"Queen Anne","year":"1891","name":null},{"lat":40.917927,"lng":-77.776839,"addr":"307 E CURTIN ST","cond":"poor","use":"residential","style":"American 4 square","year":"unknown","name":null},{"lat":40.917959,"lng":-77.77663,"addr":"313 E CURTIN ST","cond":"good","use":"residential","style":"Craftsman Bungalo","year":"1920","name":null},{"lat":40.917988,"lng":-77.776436,"addr":"317 E CURTIN ST","cond":"fair","use":"resdiential, duplex","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.918028,"lng":-77.776259,"addr":"325 E CURTIN ST","cond":"fair","use":"residential","style":"Craftsman","year":"1905","name":null},{"lat":40.918062,"lng":-77.776084,"addr":"329 E CURTIN ST","cond":"fair","use":"residential","style":"Craftsman","year":"1905","name":null},{"lat":40.918121,"lng":-77.775736,"addr":"337 E CURTIN ST","cond":"excellent","use":"residential","style":"Shingle Style","year":"1891","name":"William J. Nichols House"},{"lat":40.918216,"lng":-77.775355,"addr":"349 E CURTIN ST","cond":"good","use":"residential","style":"California Ranch","year":"1947","name":null},{"lat":40.918243,"lng":-77.775118,"addr":"355 E CURTIN ST","cond":"good","use":"residential","style":"Shingle Style","year":"1902","name":null},{"lat":40.918262,"lng":-77.774932,"addr":"359 E CURTIN ST","cond":"good","use":"residential","style":"Stick/ Eastlake","year":"1889","name":null},{"lat":40.916927,"lng":-77.779362,"addr":"430 N ALLEGHENY ST","cond":"good","use":"residential","style":"Gothic Revival","year":"1868","name":"McCafferty, Charles House"},{"lat":40.917004,"lng":-77.778893,"addr":"118 E CURTIN ST","cond":"good","use":"residential","style":"Shingle Style","year":"unknown","name":null},{"lat":40.916662,"lng":-77.779213,"addr":"420 N ALLEGHENY ST","cond":"excellent","use":"residential","style":"Italianate","year":"1879","name":"George Valentine Residence, Ironmaster's Hs"},{"lat":40.917093,"lng":-77.778697,"addr":"124 E CURTIN ST","cond":"excellent","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.917133,"lng":-77.778534,"addr":"138 E CURTIN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.917171,"lng":-77.77826,"addr":"142 E CURTIN ST","cond":"excellent","use":"residential","style":"Craftsman Bungalo","year":"1920","name":null},{"lat":40.917242,"lng":-77.778004,"addr":"156 E CURTIN ST","cond":"good","use":"residential","style":"Craftsman","year":"1934","name":"Lockington, Betty J. House"},{"lat":40.917295,"lng":-77.777794,"addr":"162 E CURTIN ST","cond":"excellent","use":"residential","style":"Shingle Style","year":"1921","name":"Bradley, Benjamin Jr. House"},{"lat":40.917364,"lng":-77.777541,"addr":"168 E CURTIN ST","cond":"excellent","use":"residential","style":"Dutch colonial","year":"1921","name":"Beezer, George A .& Mary A. House"},{"lat":40.917405,"lng":-77.777269,"addr":"172 E CURTIN ST","cond":"fair","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.917418,"lng":-77.777108,"addr":"176 E CURTIN ST","cond":"good","use":"residential","style":"Shingle Style","year":"unknown","name":null},{"lat":40.917464,"lng":-77.776952,"addr":"180 E CURTIN ST","cond":"fair","use":"residential, duplex","style":"American 4 square","year":"unknown","name":null},{"lat":40.917514,"lng":-77.77671,"addr":"302 E CURTIN ST","cond":"fair","use":"residential","style":"Queen Anne","year":"unknown","name":null},{"lat":40.917564,"lng":-77.776558,"addr":"306 E CURTIN ST","cond":"good","use":"residential","style":"Stick/ Eastlake","year":"unknown","name":null},{"lat":40.917587,"lng":-77.776439,"addr":"310 E CURTIN ST","cond":"fair","use":"residential","style":"Queen Anne","year":"unknown","name":null},{"lat":40.917651,"lng":-77.776086,"addr":"322 E CURTIN ST","cond":"good","use":"residential","style":"Dutch colonial","year":"1926","name":null},{"lat":40.917696,"lng":-77.775915,"addr":"326 E CURTIN ST","cond":"fair","use":"residential","style":"Craftsman Bungalo","year":"unknown","name":null},{"lat":40.917741,"lng":-77.775701,"addr":"334 E CURTIN ST","cond":"good","use":"residential","style":"Dutch colonial","year":"unknown","name":null},{"lat":40.917788,"lng":-77.775521,"addr":"338 E CURTIN ST","cond":"good","use":"residential","style":"Dutch colonial","year":"unknown","name":null},{"lat":40.917806,"lng":-77.775346,"addr":"342 E CURTIN ST","cond":"good","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.917822,"lng":-77.775165,"addr":"348 E CURTIN ST","cond":"fair","use":"residential","style":"no style","year":"unknown","name":null},{"lat":40.917889,"lng":-77.77505,"addr":"350 E CURTIN ST","cond":"good","use":"residential","style":"Queen Anne","year":"1885","name":"Ada T. Hoover House"},{"lat":40.917915,"lng":-77.774962,"addr":"352 E CURTIN ST","cond":"fair","use":"residential","style":"Queen Anne","year":"1885","name":"Ada T. Hoover House"},{"lat":40.917953,"lng":-77.774833,"addr":"358 E CURTIN ST","cond":"good","use":"residential, duplex","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.916406,"lng":-77.779197,"addr":"410 N ALLEGHENY ST","cond":"good","use":"residential","style":"ranch","year":null,"name":null},{"lat":40.916038,"lng":-77.779027,"addr":"107 E LINN ST","cond":"excellent","use":"residential","style":"exotic revival","year":"unknown","name":"F. Potts Green House"},{"lat":40.916093,"lng":-77.778813,"addr":"113 E LINN ST","cond":"excellent","use":"residential","style":"mid 19th c.","year":"1858","name":"Graham, Edward House"},{"lat":40.916122,"lng":-77.778559,"addr":"119 E LINN ST","cond":"excellent","use":"residential","style":"mid 19th c.","year":"1869","name":"Butts, David M. House"},{"lat":40.916204,"lng":-77.778261,"addr":"129 E LINN ST","cond":"excellent","use":"residential","style":"Late Victorian","year":"1868-1873","name":"Butts-McCafferty-Reynolds House"},{"lat":40.916267,"lng":-77.778028,"addr":"135 E LINN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.916301,"lng":-77.777853,"addr":"143 E LINN ST","cond":"excellent","use":"residential","style":"2nd Empire","year":"unknown","name":null},{"lat":40.916334,"lng":-77.777696,"addr":"147 E LINN ST","cond":"excellent","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.916372,"lng":-77.777531,"addr":"153 E LINN ST","cond":"excellent","use":"residential","style":"Late Victorian","year":"unknown","name":"Potter, George L. House"},{"lat":40.916397,"lng":-77.777287,"addr":"157 E LINN ST","cond":"good","use":"residential","style":"Late Victorian","year":"1876","name":"Hayes-Hicks-Harry House"},{"lat":40.916458,"lng":-77.777071,"addr":"163 E LINN ST","cond":"fair","use":"residential","style":"Late Victorian","year":"1875","name":"Hayes-Hicks-Harry House"},{"lat":40.916518,"lng":-77.776806,"addr":"169 E LINN ST","cond":"fair","use":"residential","style":"Late Victorian","year":"1877","name":"Dr. Thomas R. Hayes"},{"lat":40.916546,"lng":-77.776636,"addr":"177 E LINN ST","cond":"excellent","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.9166,"lng":-77.776369,"addr":"307 E LINN ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.916633,"lng":-77.776126,"addr":"313 E LINN ST","cond":"excellent","use":"residential, hotel","style":"2nd Empire","year":"1884","name":"Ardell, John R. House"},{"lat":40.916717,"lng":-77.775874,"addr":"319 E LINN ST","cond":"good","use":"residential","style":"mixed styles","year":"1939","name":null},{"lat":40.916731,"lng":-77.775702,"addr":"325 E LINN ST","cond":"excellent","use":"residential","style":"Colonial Revival","year":"1912","name":null},{"lat":40.916797,"lng":-77.775504,"addr":"329 E LINN ST","cond":"excellent","use":"residential","style":"Italian villa","year":"1887","name":"Chambers, Edward R. & Mary Worth House"},{"lat":40.916801,"lng":-77.77536,"addr":"337 E LINN ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"1888","name":"Judge walker's House"},{"lat":40.916835,"lng":-77.775155,"addr":"341 E LINN ST","cond":"good","use":"residential","style":null,"year":"1990","name":null},{"lat":40.916942,"lng":-77.774804,"addr":"347 E LINN ST","cond":"excellent","use":"residential","style":"Italianate","year":"1877","name":"Rhoads-Orvis-Dale House"},{"lat":40.915813,"lng":-77.778607,"addr":"116 E LINN ST","cond":"good","use":"residential, institutional","style":"American 4 square","year":"unknown","name":null},{"lat":40.91553,"lng":-77.778755,"addr":"310 N ALLEGHENY ST","cond":"good","use":"school offices","style":"2nd Empire","year":"unknown","name":"Cook, John W. and Ella House"},{"lat":40.915322,"lng":-77.778839,"addr":"304 N ALLEGHENY ST","cond":"excellent","use":"residential","style":"Colonial Revival","year":"1905","name":null},{"lat":40.915844,"lng":-77.778049,"addr":"130 E LINN ST","cond":"excellent","use":"residential","style":"Shingle Style","year":"unknown","name":"C. T. Montgomery House"},{"lat":40.915981,"lng":-77.777725,"addr":"140 E LINN ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"1888","name":"Judge Ellis Orvis House"},{"lat":40.916002,"lng":-77.777563,"addr":"146 E LINN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"unknown","name":"Methodist Parsonage"},{"lat":40.91608,"lng":-77.777202,"addr":"156 E LINN ST","cond":"good","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.916134,"lng":-77.777001,"addr":"166 E LINN ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"unknown","name":null},{"lat":40.916173,"lng":-77.77682,"addr":"170 E LINN ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"1885","name":"John C. Miller Residence"},{"lat":40.916226,"lng":-77.776496,"addr":"176 E LINN ST","cond":"excellent","use":"residential, hotel","style":"Queen Anne","year":"1895","name":"Bryson, Louise House"},{"lat":40.916288,"lng":-77.776204,"addr":"306 E LINN ST","cond":"fair","use":"residential","style":"Queen Anne","year":"1880","name":null},{"lat":40.916348,"lng":-77.776035,"addr":"308 E LINN ST","cond":"fair","use":"residential, duplex","style":"Colonial Revival","year":"1915","name":"Flemming, Wilson & Belle P. House"},{"lat":40.916359,"lng":-77.775723,"addr":"324 E LINN ST","cond":"fair","use":"residential","style":"split-level","year":"unknown","name":null},{"lat":40.91641,"lng":-77.775417,"addr":"338 E LINN ST","cond":"fair","use":"residential","style":"split-level","year":"unknown","name":null},{"lat":40.916512,"lng":-77.775046,"addr":"342 E LINN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.916555,"lng":-77.774795,"addr":"346 E LINN ST","cond":"good","use":"residential","style":"Prarie style","year":"unknown","name":null},{"lat":40.916634,"lng":-77.774364,"addr":"348 E LINN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.918332,"lng":-77.774638,"addr":"365 E CURTIN ST","cond":"excellent","use":"residential","style":"Craftsman Bungalo","year":"1920","name":null},{"lat":40.918394,"lng":-77.774441,"addr":"375 E CURTIN ST","cond":"excellent","use":"residential","style":"Stick/ Eastlake","year":"1885","name":null},{"lat":40.918427,"lng":-77.774238,"addr":"381 E CURTIN ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.918463,"lng":-77.774014,"addr":"389 E CURTIN ST","cond":"fair","use":"residential","style":"Late Victorian","year":"1900","name":null},{"lat":40.918048,"lng":-77.774399,"addr":"370 E CURTIN ST","cond":"good","use":"residential","style":"Gothic Revival","year":"1919","name":null},{"lat":40.918085,"lng":-77.774188,"addr":"378 E CURTIN ST","cond":"good","use":"residential","style":"Dutch colonial","year":"1938","name":null},{"lat":40.918054,"lng":-77.773928,"addr":"384 E CURTIN ST","cond":"good","use":"residential","style":"French Renaissance","year":"1934","name":null},{"lat":40.917062,"lng":-77.774247,"addr":"363 E LINN ST","cond":"excellent","use":"residential","style":"Italianate","year":"unknown","name":null},{"lat":40.91713,"lng":-77.77388,"addr":"375 E LINN ST","cond":"excellent","use":"residential","style":"Shingle Style","year":"unknown","name":null},{"lat":40.917199,"lng":-77.773556,"addr":"387 E LINN ST","cond":"excellent","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.918818,"lng":-77.773805,"addr":"514 ARMOR ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.918715,"lng":-77.773256,"addr":"421 E CURTIN ST","cond":"fair","use":"residential","style":"Spanish colonial","year":"1937","name":null},{"lat":40.918769,"lng":-77.772889,"addr":"431 E CURTIN ST","cond":"excellent","use":"residential","style":"Dutch colonial","year":"1926","name":"George Binghaman House"},{"lat":40.918821,"lng":-77.772683,"addr":"435 E CURTIN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"1949","name":null},{"lat":40.918866,"lng":-77.772471,"addr":"441 E CURTIN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.918901,"lng":-77.772295,"addr":"445 E CURTIN ST","cond":"excellent","use":"residential","style":"Tudor Revival","year":"1936","name":"P.H. Johnston House"},{"lat":40.918938,"lng":-77.772102,"addr":"447 E CURTIN ST","cond":"fair","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.91903,"lng":-77.771825,"addr":"457 E CURTIN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"1952","name":null},{"lat":40.91907,"lng":-77.771459,"addr":"469 E CURTIN ST","cond":"good","use":"residential","style":"Spanish colonial","year":"1930","name":"Witter, Harry G. & Anna P. House"},{"lat":40.918198,"lng":-77.773517,"addr":"440  ARMOR ST","cond":"good","use":"residential","style":"Craftsman Bungalo","year":"1917","name":null},{"lat":40.917286,"lng":-77.773182,"addr":"403 E LINN ST","cond":"excellent","use":"residential","style":"Queen Anne","year":null,"name":null},{"lat":40.917322,"lng":-77.772899,"addr":"407 E LINN ST","cond":"good","use":"residential","style":"Italian Villa","year":"1888","name":null},{"lat":40.917392,"lng":-77.772705,"addr":"413 E LINN ST","cond":"good","use":"residential","style":"I-House vernacular","year":"1875","name":"Armor, Ruth Benner and James Homestead"},{"lat":40.917467,"lng":-77.772362,"addr":"423 E LINN ST","cond":"excellent","use":"residential","style":"Late Victorian","year":"unknown","name":"C. M. Bower Home"},{"lat":40.917586,"lng":-77.772121,"addr":"433 E LINN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.917637,"lng":-77.771796,"addr":"439 E LINN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.917707,"lng":-77.771505,"addr":"447 E LINN ST","cond":"good","use":"residential","style":"Shingle Style","year":"1923","name":null},{"lat":40.91774,"lng":-77.771266,"addr":"455 E LINN ST","cond":"good","use":"residential","style":"Craftsman Bungalo","year":"unknown","name":null},{"lat":40.917797,"lng":-77.77102,"addr":"463 E LINN ST","cond":"good","use":"residential","style":"Tudor Revival","year":"unknown","name":null},{"lat":40.918295,"lng":-77.77122,"addr":"425 N WILSON ST","cond":"","use":"residential","style":"no style","year":"unknown","name":null},{"lat":40.918592,"lng":-77.77163,"addr":"458 E CURTIN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.918577,"lng":-77.771827,"addr":"452 E CURTIN ST","cond":"fair","use":"residential","style":"Colonial Revival","year":"1939","name":null},{"lat":40.918525,"lng":-77.771977,"addr":"448 E CURTIN ST","cond":"fair","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.918437,"lng":-77.772135,"addr":"438 E CURTIN ST","cond":"good","use":"residential","style":"French Colonial","year":"unknown","name":null},{"lat":40.918404,"lng":-77.772301,"addr":"436 E CURTIN ST","cond":"fair","use":"residential","style":"no style","year":"unknown","name":null},{"lat":40.918338,"lng":-77.772584,"addr":"432 E CURTIN ST","cond":"good","use":"residential","style":"ranch","year":"unknown","name":null},{"lat":40.918337,"lng":-77.772866,"addr":"426 E CURTIN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.918313,"lng":-77.773029,"addr":"420 E CURTIN ST","cond":"fair","use":"residential","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.918298,"lng":-77.773311,"addr":"412 E CURTIN ST","cond":"good","use":null,"style":"Craftsman Bungalo","year":"1926","name":null},{"lat":40.911793,"lng":-77.77756,"addr":"108 S ALLEGHENY ST","cond":"excellent","use":"government","style":"Queen Anne","year":"1887","name":"W. F. Reynolds & Co. Bank Building"},{"lat":40.911869,"lng":-77.777352,"addr":"110 E HIGH ST","cond":"fire damaged","use":"hotel","style":"Italianate","year":"1861","name":"Garman Hotel; Hotel DoDe"},{"lat":40.911956,"lng":-77.77698,"addr":"122 E HIGH ST","cond":"excellent","use":"office","style":"Late Victorian","year":"1887","name":null},{"lat":40.911998,"lng":-77.776768,"addr":"128 E HIGH ST","cond":"good","use":"residential","style":"Shingle Style","year":"unknown","name":null},{"lat":40.912042,"lng":-77.776581,"addr":"132 E HIGH ST","cond":"good","use":"residential","style":"Queen Anne","year":"1888","name":"Mingle, A.C. House"},{"lat":40.912048,"lng":-77.776439,"addr":"134 E HIGH ST","cond":"good","use":"residential","style":"Late Victorian","year":"1893","name":"Stitzer, H.Y. House"},{"lat":40.911365,"lng":-77.777426,"addr":"122 S ALLEGHENY ST","cond":"fair","use":"commercial, resident.","style":"Late Victorian","year":"1894","name":null},{"lat":40.911203,"lng":-77.777373,"addr":"130 S ALLEGHENY ST","cond":"excellent","use":"commercial, residential","style":"Late Victorian","year":"1894","name":null},{"lat":40.911097,"lng":-77.777305,"addr":"136 S ALLEGHENY ST","cond":"fair","use":"commercial, resident.","style":"Vernacular","year":"unknown","name":null},{"lat":40.911065,"lng":-77.776611,"addr":"121 E BISHOP ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.911013,"lng":-77.776845,"addr":"115 E BISHOP ST","cond":"fair","use":"residential","style":"Late Victorian","year":"1900","name":"multiple address structure, also 111 W Bishop"},{"lat":40.910965,"lng":-77.777028,"addr":"109 E BISHOP ST","cond":"poor","use":"commercial","style":"Vernacular","year":"unknown","name":null},{"lat":40.910996,"lng":-77.77726,"addr":"144 S ALLEGHENY ST","cond":"fair","use":"commercial, resident.","style":"Commercial","year":"unknown","name":null},{"lat":40.910153,"lng":-77.778892,"addr":"208 S SPRING ST","cond":"good","use":"commercial","style":"Vernacular","year":"unknown","name":null},{"lat":40.90989,"lng":-77.778815,"addr":"216 S SPRING ST","cond":"fair","use":"residential ","style":"Italianate","year":"unknown","name":null},{"lat":40.909928,"lng":-77.778532,"addr":"133 W LOGAN ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.910352,"lng":-77.778648,"addr":"138 W BISHOP ST","cond":"good","use":"commercial","style":null,"year":null,"name":null},{"lat":40.910414,"lng":-77.778541,"addr":"130 W BISHOP ST","cond":"excellent","use":"residential, duplex","style":"Italianate","year":"unknown","name":"128-130"},{"lat":40.909945,"lng":-77.778345,"addr":"129 W LOGAN ST","cond":"","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.910457,"lng":-77.778328,"addr":"124 W BISHOP ST","cond":"good","use":"commercial, residential","style":"Georgian","year":"unknown","name":null},{"lat":40.910472,"lng":-77.778182,"addr":"122 W BISHOP ST","cond":"poor","use":"commercial, residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.910504,"lng":-77.778087,"addr":"118 W BISHOP ST","cond":"poor","use":"commercial, residential","style":"Vernacular","year":"unknown","name":"118-120"},{"lat":40.910523,"lng":-77.777997,"addr":"116 W BISHOP ST","cond":"good","use":"commercial, residential","style":"Georgian","year":"unknown","name":"114-116"},{"lat":40.910048,"lng":-77.777812,"addr":"115 W LOGAN ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.91055,"lng":-77.777886,"addr":"112 W BISHOP ST","cond":"excellent","use":"commercial, residential","style":"Georgian","year":"1830","name":"Myers-Doll House & Store"},{"lat":40.910562,"lng":-77.777785,"addr":"106 W BISHOP ST","cond":"fair","use":"commercial, residential","style":"Late Victorian","year":"1910","name":null},{"lat":40.910095,"lng":-77.777624,"addr":"107 W LOGAN ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.910563,"lng":-77.777627,"addr":"104 W BISHOP ST","cond":"damaged","use":"vacant","style":"Colonial Revival","year":"1920","name":"Cadillac Building, architect Anna W. Kechline"},{"lat":40.91012,"lng":-77.777507,"addr":"105 W LOGAN ST","cond":"good","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.910204,"lng":-77.777391,"addr":"217 S ALLEGHENY ST","cond":"fair","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.910147,"lng":-77.777367,"addr":"219 S ALLEGHENY ST","cond":"good","use":"residential","style":"Late Victorian","year":"unknown","name":" "},{"lat":40.910589,"lng":-77.777075,"addr":"102 E BISHOP ST","cond":"fair","use":"commercial","style":null,"year":null,"name":null},{"lat":40.910715,"lng":-77.77697,"addr":"106 E BISHOP ST","cond":"poor","use":"restaurant","style":"Vernacular","year":"unknown","name":"Hofbrau House Restaurant"},{"lat":40.910887,"lng":-77.776028,"addr":"134 E BISHOP ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"unknown","name":"Catholic Church Parsonage"},{"lat":40.911252,"lng":-77.777372,"addr":"128 S ALLEGHENY ST","cond":"fair","use":"commercial, resident.","style":"Late Victorian","year":"1894","name":null},{"lat":40.911873,"lng":-77.782129,"addr":"401 W HIGH ST","cond":"good","use":"commercial","style":"commercial","year":"unknown","name":null},{"lat":40.911877,"lng":-77.78233,"addr":"409 W HIGH ST","cond":"excellent","use":"residential","style":"Georgian","year":"1830's ","name":"Williams, William G. House; Ficarro Houses"},{"lat":40.912913,"lng":-77.778457,"addr":"125 N ALLEGHENY ST","cond":"excellent","use":"commercial, civic org","style":"Greek Revival","year":"1835","name":"Gen. James Irvin House; Masonic Lodge #266"},{"lat":40.912806,"lng":-77.778404,"addr":"123 N ALLEGHENY ST","cond":"good","use":"commercial, residential","style":"Greek Revival","year":"1825","name":"Hamilton Humes House"},{"lat":40.910462,"lng":-77.783169,"addr":"159 ST PAUL ST","cond":"good","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.910673,"lng":-77.78252,"addr":"127 S POTTER ST","cond":"","use":"commercial","style":null,"year":null,"name":null},{"lat":40.909538,"lng":-77.783121,"addr":"100 MATCH FACTORY PL","cond":"good","use":"industrial","style":"commercial","year":"1899","name":"The Pennsylvania Match Company"},{"lat":40.908516,"lng":-77.782274,"addr":"369 PHOENIX AVE","cond":"good","use":"commercial","style":null,"year":null,"name":"Bellefonte EMS Station"},{"lat":40.914136,"lng":-77.774274,"addr":"334 E HOWARD ST","cond":"good","use":"residential","style":"Gothic Revival","year":"1859","name":"Union Cemetery Gatekeepers House"},{"lat":40.911183,"lng":-77.78278,"addr":"126 S THOMAS ST","cond":"good","use":"residential","style":"Craftsman","year":"1922","name":null},{"lat":40.911015,"lng":-77.782565,"addr":"121 S POTTER ST","cond":"","use":"commercial, residential","style":null,"year":null,"name":null},{"lat":40.911346,"lng":-77.782861,"addr":"116 S THOMAS ST","cond":"fair","use":"residential, duplex","style":"Queen Anne","year":"1900","name":null},{"lat":40.913191,"lng":-77.778593,"addr":"137 N ALLEGHENY ST","cond":"excellent","use":"civic organization","style":"Georgian","year":"1810","name":"Benner-Walker-Linn House"},{"lat":40.913461,"lng":-77.778707,"addr":"203 N ALLEGHENY ST","cond":"excellent","use":"library ","style":"Georgian","year":"1815","name":"Miles-Potter-Humes House"},{"lat":40.915704,"lng":-77.778921,"addr":"318 N ALLEGHENY ST","cond":"good","use":"school offices","style":"Gothic Revival","year":"1889","name":"Lutheran Church"},{"lat":40.916377,"lng":-77.780128,"addr":"421 N ALLEGHENY ST","cond":"good","use":null,"style":"commercial","year":null,"name":null},{"lat":40.916502,"lng":-77.77992,"addr":"423 N ALLEGHENY ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"unknown","name":"J. Moran"},{"lat":40.91158,"lng":-77.777489,"addr":"118 S ALLEGHENY ST","cond":"excellent","use":"commercial","style":"Romanesque Revival","year":"1894","name":"Temple Court"},{"lat":40.910925,"lng":-77.777244,"addr":"148 N ALLEGHENY ST","cond":"fair","use":"commercial","style":"Commercial","year":"unknown","name":null},{"lat":40.918687,"lng":-77.773608,"addr":"504 ARMOR ST","cond":"","use":"residential","style":"no style","year":"unknown","name":null},{"lat":40.918866,"lng":-77.774164,"addr":"517 ARMOR ST","cond":"","use":"residential","style":"Craftsman Bungalo","year":"unknown","name":null},{"lat":40.910998,"lng":-77.776972,"addr":"111 E BISHOP ST","cond":"fair","use":"residential","style":"Queen Anne","year":"unknown","name":"multiple address structure, also 115 W Bishop"},{"lat":40.910723,"lng":-77.776793,"addr":"116 E BISHOP ST","cond":"","use":"School","style":null,"year":null,"name":"Catholic Church School"},{"lat":40.91077,"lng":-77.776218,"addr":"134 E BISHOP ST","cond":"excellent","use":"Church","style":"Gothic Revival","year":"1184","name":"Catholic Church  "},{"lat":40.910448,"lng":-77.778406,"addr":"126 W BISHOP ST","cond":"fair","use":"commercial, residential","style":"Italianate","year":"unknown","name":null},{"lat":40.910565,"lng":-77.777767,"addr":"106 W BISHOP ST","cond":"good","use":"commercial residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.910757,"lng":-77.778044,"addr":"117 W BISHOP ST","cond":"fair","use":"commercial, resident.","style":"Late Victorian","year":"unknown","name":null},{"lat":40.910352,"lng":-77.778852,"addr":"140 W BISHOP ST","cond":"good","use":"residential","style":"Georgian","year":"unknown","name":null},{"lat":40.91035,"lng":-77.778941,"addr":"142 W BISHOP ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":"second house on same lot"},{"lat":40.910933,"lng":-77.780422,"addr":"211 W CHERRY LN","cond":"good","use":"residential","style":"Dutch colonial","year":"unknown","name":null},{"lat":40.917611,"lng":-77.776293,"addr":"318 E CURTIN ST","cond":"poor","use":"residential, duplex","style":"Late Victorian","year":"unknown","name":null},{"lat":40.918665,"lng":-77.771289,"addr":"464 E CURTIN ST","cond":"good","use":"residential","style":"Colonial Revival","year":"1936","name":"Raymond Brooks Sr. original owner"},{"lat":40.916777,"lng":-77.781765,"addr":"205 W CURTIN ST","cond":"excellent","use":"residential","style":"Italianate","year":"unknown","name":null},{"lat":40.912171,"lng":-77.781719,"addr":"120 DUNLAP ST","cond":"fair","use":"commercial","style":"Vernacular","year":"unknown","name":null},{"lat":40.912464,"lng":-77.777645,"addr":"107 E HIGH ST","cond":"good","use":"commercial, residential","style":"Italianate","year":"unknown","name":null},{"lat":40.91191,"lng":-77.777145,"addr":"116 E HIGH ST","cond":"fire damaged","use":"hotel, theatre","style":"Late Victorian","year":"1890","name":"Garman Opera House"},{"lat":40.912527,"lng":-77.777299,"addr":"117 E HIGH ST","cond":"fair","use":"residential","style":"Gothic Revival","year":"unknown","name":null},{"lat":40.912865,"lng":-77.775597,"addr":"227 E HIGH ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.912934,"lng":-77.775267,"addr":"239 E HIGH ST","cond":"good","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.911736,"lng":-77.778723,"addr":"124 W HIGH ST","cond":"fair","use":"commercial","style":"Art Deco","year":"1925","name":"Plaza Theatre"},{"lat":40.91189,"lng":-77.779416,"addr":"141 W HIGH ST","cond":"good","use":"commercial, residential","style":"Georgian","year":"1795","name":"James Dunlop House"},{"lat":40.911469,"lng":-77.780026,"addr":"210 1/2 W HIGH ST ","cond":"good","use":"commercial, residential","style":"Italianate","year":"1882-1183","name":"Little Arcade"},{"lat":40.911996,"lng":-77.776867,"addr":"124 E HIGH ST","cond":"good","use":"residential","style":"Late Victorian","year":"unknown","name":null},{"lat":40.916803,"lng":-77.773702,"addr":"392 E LINN ST","cond":"fair","use":"residential","style":"Colonial Revival","year":"1965","name":null},{"lat":40.915928,"lng":-77.77968,"addr":"101 W LINN ST","cond":"excellent","use":"residential, hotel","style":"Late Victorian","year":"1883","name":"Col. W.F. Reynolds Mansion"},{"lat":40.910078,"lng":-77.777693,"addr":"109 W LOGAN ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.912056,"lng":-77.782096,"addr":"105 N POTTER ST","cond":"poor","use":"commercial","style":"Vernacular","year":"unknown","name":null},{"lat":40.912891,"lng":-77.775054,"addr":"108 N RIDGE ST","cond":"good","use":"residential","style":"Vernacular","year":"unknown","name":null},{"lat":40.912484,"lng":-77.783508,"addr":"132 SCOTT LN","cond":"good","use":"residential","style":"no style","year":"unknown","name":null},{"lat":40.912149,"lng":-77.779518,"addr":"106 N SPRING ST","cond":"fair","use":"commercial","style":"commercial","year":"unknown","name":null},{"lat":40.912282,"lng":-77.779665,"addr":"114 N SPRING ST","cond":"good","use":"commercial","style":"commercial","year":"unknown","name":null},{"lat":40.915969,"lng":-77.781317,"addr":"421 N SPRING ST","cond":"excellent","use":"residential","style":"Queen Anne","year":"unknown","name":null},{"lat":40.911177,"lng":-77.77927,"addr":"116 S SPRING ST","cond":"fair","use":"commercial, residential","style":null,"year":"1946","name":null},{"lat":40.912385,"lng":-77.783007,"addr":"123 N THOMAS ST","cond":"fair","use":"residential","style":"Late Victorian","year":"1869","name":"Gasner, Joseph House"},{"lat":40.912525,"lng":-77.783059,"addr":"127 N THOMAS ST","cond":"fair","use":"residential","style":"Italianate","year":"1869","name":"Mullholland, James Lafayette House"},{"lat":40.912656,"lng":-77.78308,"addr":"131 N THOMAS ST","cond":"fair","use":"residential","style":"Late Victorian","year":"1870","name":"Goutiere, Margaret House"},{"lat":40.913118,"lng":-77.78326,"addr":"147 N THOMAS ST","cond":"good","use":"residential","style":"Italianate","year":"unknown","name":null},{"lat":40.913321,"lng":-77.78355,"addr":"155 N THOMAS ST","cond":"good","use":"residential","style":"2nd Empire","year":"unknown","name":null},{"lat":40.910617,"lng":-77.780695,"addr":"120 S WATER ST","cond":"good","use":"commercial","style":"Vernacular","year":"1908","name":"Bullock, Forrest L.Carriage Works"},{"lat":40.908829,"lng":-77.780983,"addr":"207 S WATER ST","cond":"good","use":"municipal","style":"Colonial Revival","year":"unknown","name":"Big Spring Corning Pump House"},{"lat":40.908688,"lng":-77.780745,"addr":"208 S WATER ST","cond":"good","use":"residential, rental","style":"Colonial Revival","year":"unknown","name":null},{"lat":40.907751,"lng":-77.78541,"addr":"E HIGH ST","cond":"","use":null,"style":null,"year":null,"name":"location of former Methodist Church, 1858 map"},{"lat":40.913698,"lng":-77.77877,"addr":"N ALLEGHENY ST","cond":"","use":null,"style":null,"year":null,"name":"location of former Allison House"},{"lat":40.912666,"lng":-77.776714,"addr":"E HIGH ST","cond":"","use":null,"style":null,"year":null,"name":"location of former Masonic Hall, 1858 map"},{"lat":40.913198,"lng":-77.775719,"addr":"226 E HIGH ST","cond":"fair","use":"residential","style":"Vernacular","year":"unknown","name":null}],"underutilized":[{"lat":40.914663,"lng":-77.784584,"name":"W.M. Dairy Building","addr":"238 N THOMAS ST","muni":"Bellefonte","type":"Commercial","desc":"Former Processing Plant","sqft":5000,"zoning":"WATERFRONT BUSINESS DISTRICT"},{"lat":40.901527,"lng":-77.776956,"name":"Titan Energy Park","addr":"2022 AXEMANN RD","muni":"Spring Twp","type":"Industrial","desc":"Rehabed Industrial Plant","sqft":480000,"zoning":"HIGHWAY MIXED USE"},{"lat":40.897945,"lng":-78.224034,"name":"Stoicheff, Gregory (Stoicheff Auto Parts)","addr":"232 N FRONT ST","muni":"Philipsburg","type":"Commercial","desc":"2-STORY BRICK","sqft":15000,"zoning":"DOWNTOWN COMMERCIAL"},{"lat":40.90808,"lng":-77.78525,"name":"Potter Street Associates","addr":"238 S POTTER ST","muni":"Bellefonte","type":"Industrial","desc":"2-STORY WITH ATTACHED GARAGE","sqft":6000,"zoning":"WATERFRONT BUSINESS DISTRICT"},{"lat":40.895975,"lng":-78.221068,"name":"Philips Hotel","addr":"200 E PRESQUEISLE ST","muni":"Philipsburg","type":"Commercial","desc":"6-STORY BRICK","sqft":50000,"zoning":"RESIDENTIAL MULTI-HOUSEHOLD"},{"lat":40.895088,"lng":-78.222883,"name":"Blake, Keith","addr":"20 W PRESQUEISLE ST","muni":"Philipsburg","type":"Commercial","desc":"2-STORY GARAGE AND WAREHOUSE","sqft":25240,"zoning":"DOWNTOWN COMMERCIAL"},{"lat":40.894878,"lng":-78.223295,"name":"Country Living Home Builders Inc","addr":"102 W Presqueisle St","muni":"Philipsburg","type":"Industrial","desc":"2 STORY, BRICK, FORMER MEAT PACKING PLANT","sqft":6800,"zoning":"LIGHT INDUSTRIAL"},{"lat":40.915158,"lng":-77.783571,"name":"Belle Buick","addr":"228 N WATER ST","muni":"Bellefonte","type":"Commercial","desc":"1 STORY BLOCK","sqft":9000,"zoning":"WATERFRONT BUSINESS"}],"vacant_lands":[{"lat":40.87004,"lng":-77.777033,"name":"BELLEFONTE-STATE COLLEGE","loc":"PENNTECH DR","muni":"BENNER TOWNSHIP","acres":15.4,"zoning":"Light Industrial"},{"lat":40.87093,"lng":-77.771552,"name":"BELLEFONTE-STATE COLLEGE","loc":" ","muni":"BENNER TOWNSHIP","acres":5.4,"zoning":"Light Industrial"},{"lat":40.877386,"lng":-77.774257,"name":"BHP DEVELOPMENT LLC","loc":"RISHEL HILL RD","muni":"BENNER TOWNSHIP","acres":16.1,"zoning":"General Commercial"},{"lat":40.887452,"lng":-77.773863,"name":"JVH BELLEFONTE LLC","loc":"ROLLING RIDGE DR","muni":"SPRING TOWNSHIP","acres":2.1,"zoning":"Light Industrial"},{"lat":40.888261,"lng":-77.774403,"name":"JVH BELLEFONTE LLC","loc":"ROLLING RIDGE DR","muni":"SPRING TOWNSHIP","acres":2.1,"zoning":"Light Industrial"},{"lat":40.888687,"lng":-77.770618,"name":"JHV BELLEFONTE LLC","loc":"E ROLLING RIDGE DR","muni":"SPRING TOWNSHIP","acres":4.5,"zoning":"Light Industrial"},{"lat":40.889265,"lng":-77.780997,"name":"TABATHA S BENNETT SEPARATE","loc":"AMBERLEIGH LN","muni":"BENNER TOWNSHIP","acres":3.5,"zoning":"Highway Commercial"},{"lat":40.896732,"lng":-77.787017,"name":"REPINE, GORDON K & DAL ELLA L","loc":"KENLEE DR","muni":"BENNER TOWNSHIP","acres":4.2,"zoning":"Highway Commercial"},{"lat":40.898166,"lng":-77.790284,"name":"HENDERSON, IAN R & KAREN M","loc":"BENNER PIKE","muni":"BENNER TOWNSHIP","acres":14.4,"zoning":"Highway Commercial"},{"lat":40.914988,"lng":-77.758939,"name":"WEIS MARKETS INC","loc":"987 E BISHOP ST","muni":"BELLEFONTE BOROUGH","acres":3.5,"zoning":"Highway Commercial"},{"lat":40.914509,"lng":-77.74027,"name":"WEIS MARKETS INC","loc":"ZION RD","muni":"SPRING TOWNSHIP","acres":3.4,"zoning":"Interchange Commercial"},{"lat":40.913315,"lng":-77.7368,"name":"WEIS MARKETS INC","loc":"BUCKAROO LN","muni":"SPRING TOWNSHIP","acres":3.2,"zoning":"Interchange Commercial"},{"lat":40.91191,"lng":-77.736183,"name":"WEIS MARKETS INC","loc":"BUCKAROO LN","muni":"SPRING TOWNSHIP","acres":4.4,"zoning":"Interchange Commercial"},{"lat":40.875883,"lng":-77.740451,"name":"REESE, SUSAN D","loc":"N HARRISON RD","muni":"SPRING TOWNSHIP","acres":10.4,"zoning":"Light Industrial"},{"lat":40.883273,"lng":-77.734841,"name":"S A C CORPORATION","loc":"C HARRISON RD","muni":"SPRING TOWNSHIP","acres":42.6,"zoning":"Light Industrial"},{"lat":40.881613,"lng":-77.732584,"name":"WITHERITE, ELSIE L ETAL","loc":"598 WITHERITE RD","muni":"SPRING TOWNSHIP","acres":32.8,"zoning":"Light Industrial"},{"lat":40.842377,"lng":-77.794401,"name":"SEVAN LP","loc":"1100 BENNER PIKE","muni":"COLLEGE TOWNSHIP","acres":16.6,"zoning":"General Commercial"},{"lat":40.840942,"lng":-77.79587,"name":"SARGUN HOLDING LP","loc":"BENNER PIKE","muni":"COLLEGE TOWNSHIP","acres":9.8,"zoning":"General Commercial"},{"lat":40.829951,"lng":-77.795826,"name":"STEWART, RALPH W & LYNNE R","loc":"Stewart Drive","muni":"COLLEGE TOWNSHIP","acres":10.3,"zoning":"General Industrial"},{"lat":40.832867,"lng":-77.794637,"name":"STEWART, HERBERT W & ELEANOR M","loc":"E COLLEGE AVE","muni":"COLLEGE TOWNSHIP","acres":5.3,"zoning":"General Industrial"},{"lat":40.951547,"lng":-77.785518,"name":"MARTIN, TROY D & FAITH A","loc":"Tracy Dale Rd","muni":"BOGGS TOWNSHIP","acres":19.3,"zoning":"Commercial Manufacturing"},{"lat":40.962002,"lng":-77.761857,"name":"MILESBURG TRUCK PLAZA INC","loc":"N EAGLE VALLEY RD","muni":"BOGGS TOWNSHIP","acres":7.8,"zoning":"Commercial Manufacturing"},{"lat":40.854058,"lng":-77.857431,"name":"ETTERS, MARK E & APRIL A","loc":"CROSSWINDS DR","muni":"BENNER TOWNSHIP","acres":2.4,"zoning":"Airport Industrial"},{"lat":40.853298,"lng":-77.856041,"name":"NITTANY PROPERTY LLC","loc":"CROSSWINDS DR","muni":"BENNER TOWNSHIP","acres":4.4,"zoning":"Airport Industrial"},{"lat":40.85288,"lng":-77.857347,"name":"CENTRE COUNTY AIRPORT AUTHOR","loc":"CROSSWINDS DR","muni":"BENNER TOWNSHIP","acres":4.3,"zoning":"Airport Industrial"},{"lat":40.830308,"lng":-77.677835,"name":"GRIEB, STEPHEN R ETAL","loc":"Route SR-0045","muni":"POTTER TOWNSHIP","acres":39.2,"zoning":"General Commercial"},{"lat":40.851116,"lng":-77.855367,"name":"CENTRE COUNTY AIRPORT AUTH.","loc":"2493 FOX HILL RD","muni":"BENNER TOWNSHIP","acres":9.3,"zoning":"Airport Industrial"},{"lat":40.830598,"lng":-77.793843,"name":"STEWART, HERBERT W & ELEANOR M","loc":"2900 STEWART DRIVE","muni":"COLLEGE TOWNSHIP","acres":17.0,"zoning":"General Industrial"},{"lat":40.83264,"lng":-77.795272,"name":"STEWART, HERBERT W & ELEANOR M","loc":"2900 STEWART DRIVE","muni":"COLLEGE TOWNSHIP","acres":7.6,"zoning":"General Industrial"},{"lat":40.953332,"lng":-77.779374,"name":"AMERON CONSTRUCTION CO INC","loc":"WILLY REED RD","muni":"BOGGS TOWNSHIP","acres":16.8,"zoning":"Commercial Manufacturing"},{"lat":40.887079,"lng":-77.767592,"name":"SIXTY-FIVE LLC","loc":"E ROLLING RIDGE DR","muni":"SPRING TOWNSHIP","acres":5.1,"zoning":"Light Industrial"},{"lat":40.831355,"lng":-77.67443,"name":"DRBA ENTERPRISES LP","loc":"N/A","muni":"POTTER TOWNSHIP","acres":87.6,"zoning":"General Commercial"},{"lat":41.030482,"lng":-77.933504,"name":"SNOW SHOE EXIT 22 RESTAURANT INC","loc":"460 E SYCAMORE RD","muni":"SNOW SHOE TOWNSHIP","acres":139.7,"zoning":"General Commercial"},{"lat":41.026816,"lng":-77.920276,"name":"CARLIN, NANCY","loc":"FOUNTAIN RD","muni":"SNOW SHOE TOWNSHIP","acres":38.5,"zoning":"General Commercial"},{"lat":41.025608,"lng":-77.928728,"name":"TOBIAS PROPERTIES LLC","loc":"E SYCAMORE RD","muni":"SNOW SHOE TOWNSHIP","acres":9.5,"zoning":"General Commercial"},{"lat":41.026163,"lng":-77.923384,"name":"NASTASE, JOHN A","loc":"717 E SYCAMORE RD","muni":"SNOW SHOE TOWNSHIP","acres":4.4,"zoning":"General Commercial"},{"lat":40.936807,"lng":-77.8184,"name":"WILLIAMS, CAROLYN DAVIDSON","loc":"RUNVILLE RD","muni":"BOGGS TOWNSHIP","acres":27.4,"zoning":"Village Commercial"},{"lat":40.909829,"lng":-77.779266,"name":"SONGER, THOMAS F II","loc":"215 S SPRING ST","muni":"BELLEFONTE BOROUGH","acres":0.3,"zoning":"Central Business"},{"lat":40.909882,"lng":-77.779914,"name":"SONGER, THOMAS F II","loc":"275 W BISHOP ST","muni":"BELLEFONTE BOROUGH","acres":2.2,"zoning":"Central Business"},{"lat":40.910371,"lng":-77.780263,"name":"SONGER, THOMAS F II","loc":"219 W BISHOP ST","muni":"BELLEFONTE BOROUGH","acres":0.3,"zoning":"Central Business"},{"lat":40.884,"lng":-77.779269,"name":"H H & L PROPERTIES LLC","loc":"ROLLING RIDGE DR","muni":"BENNER TOWNSHIP","acres":3.3,"zoning":"General Commercial"},{"lat":40.884216,"lng":-77.782764,"name":"FISHERMAN'S PARADISE LP","loc":"2825 BENNER PIKE","muni":"BENNER TOWNSHIP","acres":21.8,"zoning":"General Commercial"},{"lat":40.883175,"lng":-77.773421,"name":"MOERSCHBACHER, BONNIE LOU","loc":"RISHEL HILL RD","muni":"BENNER TOWNSHIP","acres":76.6,"zoning":"General Industrial"},{"lat":40.875745,"lng":-77.775842,"name":"BHP DEVELOPMENT LLC","loc":"RISHEL HILL RD","muni":"BENNER TOWNSHIP","acres":8.3,"zoning":"General Commercial"},{"lat":40.914195,"lng":-77.735341,"name":"MASULLO, JAMES T JR","loc":"ZION RD","muni":"SPRING TOWNSHIP","acres":17.0,"zoning":"Interchange Commercial"},{"lat":40.914985,"lng":-77.730497,"name":"DASH INVESTMENTS INC","loc":"C LUTZ RD & ZION RD","muni":"SPRING TOWNSHIP","acres":17.3,"zoning":"Interchange Commercial"},{"lat":40.917661,"lng":-77.739642,"name":"NINETY-NINE PARTNERSHIP","loc":"ZION RD","muni":"SPRING TOWNSHIP","acres":31.3,"zoning":"Interchange Commercial"},{"lat":40.844392,"lng":-77.807054,"name":"CLAIR, GERALD F & SUSAN W","loc":"1060 SHILOH RD","muni":"BENNER TOWNSHIP","acres":111.5,"zoning":"General Commercial"},{"lat":40.842867,"lng":-77.812839,"name":"MOERSCHBACHER, BONNIE","loc":"1201 SHILOH RD","muni":"BENNER TOWNSHIP","acres":43.7,"zoning":"General Commercial"},{"lat":40.839948,"lng":-77.809348,"name":"ROGERS, TERRY L","loc":"SHILOH RD","muni":"COLLEGE TOWNSHIP","acres":49.2,"zoning":"Regional Business"},{"lat":40.96385,"lng":-77.755836,"name":"PIGHETTI, NEVIN D JR","loc":"1047 N EAGLE VALLEY RD","muni":"BOGGS TOWNSHIP","acres":62.0,"zoning":"Commercial Manufacturing"},{"lat":40.841236,"lng":-77.665771,"name":"HOMAN, RALPH T & ANNA SHERIE","loc":"PENNS VALLEY PIKE","muni":"POTTER TOWNSHIP","acres":56.0,"zoning":"General Industrial"},{"lat":40.839449,"lng":-77.670857,"name":"KORMAN, MARJORIE A & GERALD A","loc":"PENNS VALLEY PIKE","muni":"POTTER TOWNSHIP","acres":74.8,"zoning":"General Industrial"},{"lat":40.895047,"lng":-77.785212,"name":"BURNS, PATRICK R & DIANE K","loc":"3490 BENNER PIKE","muni":"BENNER TOWNSHIP","acres":6.0,"zoning":" "}]};
+var CHART = {"summary":{"total_pashare":9181,"total_bellefonte":442,"total_nrhp":64,"total_underutilized":8,"total_vacant_lands":54,"pashare_listed":272,"pashare_eligible":437,"bf_poor":14},"bellefonte":{"conditions":{"poor":11,"good":164,"excellent":96,"fair":152,"n/a":1,"fire damaged":2,"damaged":1},"styles":{"Late Victorian":65,"Queen Anne":51,"Colonial Revival":47,"Italianate":39,"Gothic Revival":32,"Vernacular":32,"commercial":18,"Dutch colonial":15,"2nd Empire":14,"Georgian":14,"Shingle Style":11,"Craftsman Bungalo":8},"uses":{"residential":266,"commercial":35,"commercial, residential":34,"residential, duplex":27,"commercial, resident.":9,"civic organization":7,"residential, rental":6,"residential, hotel":5},"poor_properties":[{"address":"217 W CURTIN ST","condition":"poor","use":"residential","style":"Gothic Revival","year":"unknown"},{"address":"129 W HIGH ST","condition":"poor","use":"commercial","style":"Late Victorian","year":"unknown"},{"address":"126 W CURTIN ST","condition":"poor","use":"residential","style":"Queen Anne","year":"unknown"},{"address":"141 N THOMAS ST","condition":"poor","use":"res. multi unit, vacant","style":"no style","year":"1920"},{"address":"307 E CURTIN ST","condition":"poor","use":"residential","style":"American 4 square","year":"unknown"},{"address":"110 E HIGH ST","condition":"fire damaged","use":"hotel","style":"Italianate","year":"1861"},{"address":"109 E BISHOP ST","condition":"poor","use":"commercial","style":"Vernacular","year":"unknown"},{"address":"122 W BISHOP ST","condition":"poor","use":"commercial, residential","style":"Vernacular","year":"unknown"},{"address":"118 W BISHOP ST","condition":"poor","use":"commercial, residential","style":"Vernacular","year":"unknown"},{"address":"104 W BISHOP ST","condition":"damaged","use":"vacant","style":"Colonial Revival","year":"1920"},{"address":"106 E BISHOP ST","condition":"poor","use":"restaurant","style":"Vernacular","year":"unknown"},{"address":"318 E CURTIN ST","condition":"poor","use":"residential, duplex","style":"Late Victorian","year":"unknown"},{"address":"116 E HIGH ST","condition":"fire damaged","use":"hotel, theatre","style":"Late Victorian","year":"1890"},{"address":"105 N POTTER ST","condition":"poor","use":"commercial","style":"Vernacular","year":"unknown"}]},"pashare":{"eligibility":{"Listed":272,"Undetermined":7926,"Eligible":437,"Not Eligible":501,"Demolished":38,"Local Historic District":6,"Keeper DOE - N":1},"municipalities":{"Philipsburg Borough":929,"Bellefonte Borough":896,"Rush Township":799,"Spring Township":590,"Gregg Township":371,"Snow Shoe Township":364,"Ferguson Township":340,"Potter Township":338,"Liberty Township":286,"Walker Township":282,"Miles Township":248,"Benner Township":247,"Port Matilda Borough":234,"Harris Township":228,"Centre Hall Borough":222},"styles":{"Georgian":604,"Late Victorian":420,"Gothic":253,"Bungalow/Craftsman":204,"No Style":181,"Italianate":132,"Queen Anne":86,"Federal":81,"Other":66,"Vernacular":66,"Gothic Revival":59,"Greek Revival":54}},"underutilized":[{"name":"W.M. Dairy Building","address":"238 N THOMAS ST","municipality":"Bellefonte","type":"Commercial","description":"Former Processing Plant","sqft":"5000","zoning":"WATERFRONT BUSINESS DISTRICT"},{"name":"Titan Energy Park","address":"2022 AXEMANN RD","municipality":"Spring Twp","type":"Industrial","description":"Rehabed Industrial Plant","sqft":"480000","zoning":"HIGHWAY MIXED USE"},{"name":"Stoicheff, Gregory (Stoicheff Auto Parts)","address":"232 N FRONT ST","municipality":"Philipsburg","type":"Commercial","description":"2-STORY BRICK","sqft":"15000","zoning":"DOWNTOWN COMMERCIAL"},{"name":"Potter Street Associates","address":"238 S POTTER ST","municipality":"Bellefonte","type":"Industrial","description":"2-STORY WITH ATTACHED GARAGE","sqft":"6000","zoning":"WATERFRONT BUSINESS DISTRICT"},{"name":"Philips Hotel","address":"200 E PRESQUEISLE ST","municipality":"Philipsburg","type":"Commercial","description":"6-STORY BRICK","sqft":"50000","zoning":"RESIDENTIAL MULTI-HOUSEHOLD"},{"name":"Blake, Keith","address":"20 W PRESQUEISLE ST","municipality":"Philipsburg","type":"Commercial","description":"2-STORY GARAGE AND WAREHOUSE","sqft":"25240","zoning":"DOWNTOWN COMMERCIAL"},{"name":"Country Living Home Builders Inc","address":"102 W Presqueisle St","municipality":"Philipsburg","type":"Industrial","description":"2 STORY, BRICK, FORMER MEAT PACKING PLANT","sqft":"6800","zoning":"LIGHT INDUSTRIAL"},{"name":"Belle Buick","address":"228 N WATER ST","municipality":"Bellefonte","type":"Commercial","description":"1 STORY BLOCK","sqft":"9000","zoning":"WATERFRONT BUSINESS"}],"vacant_lands":{"by_municipality":{"BENNER TOWNSHIP":17,"SPRING TOWNSHIP":13,"COLLEGE TOWNSHIP":7,"BOGGS TOWNSHIP":5,"BELLEFONTE BOROUGH":4,"POTTER TOWNSHIP":4,"SNOW SHOE TOWNSHIP":4},"by_zoning":{"General Commercial":14,"Light Industrial":9,"General Industrial":7,"Interchange Commercial":6,"Highway Commercial":4,"Commercial Manufacturing":4,"Airport Industrial":4,"Central Business":3}}};
+
+/* ---- helpers ---- */
+function fmt(n) { return n >= 10000 ? (n/1000).toFixed(1)+'K' : n.toLocaleString(); }
+
+var tip = document.getElementById('tip');
+function showTip(e, html) {
+  tip.innerHTML = html;
+  tip.style.display = 'block';
+  var r = tip.getBoundingClientRect();
+  var x = e.clientX + 12, y = e.clientY - 8;
+  if (x + r.width > window.innerWidth - 8) x = e.clientX - r.width - 12;
+  if (y + r.height > window.innerHeight - 8) y = e.clientY - r.height - 8;
+  tip.style.left = x + 'px';
+  tip.style.top = y + 'px';
+}
+function hideTip() { tip.style.display = 'none'; }
+
+/* ---- stat tiles ---- */
+var tiles = [
+  { label:'PA-SHARE resources', value:CHART.summary.total_pashare, note:'County-wide' },
+  { label:'NRHP listed', value:CHART.summary.pashare_listed, note:'+ 437 eligible' },
+  { label:'Bellefonte surveyed', value:CHART.summary.total_bellefonte, note:'With condition data' },
+  { label:'Needs attention', value:CHART.summary.bf_poor, note:'Poor/damaged (Bellefonte)' },
+  { label:'Underutilized', value:CHART.summary.total_underutilized, note:'County-tracked buildings' },
+  { label:'Vacant parcels', value:CHART.summary.total_vacant_lands, note:'Commercial/industrial' },
+];
+var tilesEl = document.getElementById('tiles');
+tiles.forEach(function(t) {
+  var d = document.createElement('div');
+  d.className = 'tile';
+  d.innerHTML = '<div class="tile-label">'+t.label+'</div><div class="tile-value">'+fmt(t.value)+'</div><div class="tile-note">'+t.note+'</div>';
+  tilesEl.appendChild(d);
+});
+
+/* ---- map ---- */
+var condColor = {
+  excellent:'#2a78d6', good:'#1baf7a', fair:'#eda100',
+  poor:'#d03b3b', 'fire damaged':'#d03b3b', damaged:'#d03b3b', 'n/a':'#898781'
+};
+
+var map = L.map('map').setView([40.913, -77.778], 14);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png', {
+  attribution: '&copy; OpenStreetMap contributors, &copy; CARTO',
+  maxZoom: 19
+}).addTo(map);
+
+/* Bellefonte layer */
+var bfLayer = L.layerGroup();
+MAP_DATA.bellefonte.forEach(function(p) {
+  var c = condColor[p.cond] || '#898781';
+  var m = L.circleMarker([p.lat, p.lng], {
+    radius: p.cond === 'poor' || p.cond === 'fire damaged' || p.cond === 'damaged' ? 6 : 4,
+    fillColor: c, color: '#fcfcfb', weight: 1.5, fillOpacity: 0.85
+  });
+  var pop = '<div class="popup-addr">' + p.addr + '</div>'
+    + '<div class="popup-row">Condition: ' + p.cond + '</div>'
+    + (p.use ? '<div class="popup-row">Use: ' + p.use + '</div>' : '')
+    + (p.style ? '<div class="popup-row">Style: ' + p.style + '</div>' : '')
+    + (p.year && p.year !== 'unknown' ? '<div class="popup-row">Year: ' + p.year + '</div>' : '')
+    + (p.name ? '<div class="popup-row">Historic name: ' + p.name + '</div>' : '');
+  m.bindPopup(pop);
+  bfLayer.addLayer(m);
+});
+bfLayer.addTo(map);
+
+/* Underutilized buildings layer */
+var ubLayer = L.layerGroup();
+MAP_DATA.underutilized.forEach(function(p) {
+  var m = L.marker([p.lat, p.lng], {
+    icon: L.divIcon({
+      className: '',
+      html: '<svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2" fill="#eb6834" stroke="#fcfcfb" stroke-width="1.5" transform="rotate(45 8 8)"/></svg>',
+      iconSize: [16, 16],
+      iconAnchor: [8, 8]
+    })
+  });
+  var sq = p.sqft ? Number(p.sqft).toLocaleString() + ' sq ft' : '';
+  var pop = '<div class="popup-addr">' + p.name + '</div>'
+    + '<div class="popup-row">' + p.addr + ', ' + p.muni + '</div>'
+    + '<div class="popup-row">' + p.type + (p.desc ? ' -- ' + p.desc : '') + '</div>'
+    + (sq ? '<div class="popup-row">' + sq + '</div>' : '')
+    + '<div class="popup-row">Zoning: ' + p.zoning + '</div>';
+  m.bindPopup(pop);
+  ubLayer.addLayer(m);
+});
+ubLayer.addTo(map);
+
+/* Vacant lands layer */
+var vlLayer = L.layerGroup();
+MAP_DATA.vacant_lands.forEach(function(p) {
+  var m = L.circleMarker([p.lat, p.lng], {
+    radius: 5, fillColor: '#898781', color: '#fcfcfb', weight: 1.5, fillOpacity: 0.7
+  });
+  var pop = '<div class="popup-addr">' + (p.name || p.loc) + '</div>'
+    + '<div class="popup-row">' + p.muni + '</div>'
+    + '<div class="popup-row">' + p.acres + ' acres</div>'
+    + '<div class="popup-row">Zoning: ' + p.zoning + '</div>';
+  m.bindPopup(pop);
+  vlLayer.addLayer(m);
+});
+vlLayer.addTo(map);
+
+L.control.layers(null, {
+  'Bellefonte historic (442)': bfLayer,
+  'Underutilized buildings (8)': ubLayer,
+  'Vacant lands (54)': vlLayer
+}, { collapsed: false }).addTo(map);
+
+/* ---- charts ---- */
+function hbar(container, data, color) {
+  var el = document.getElementById(container);
+  var entries = Object.entries(data);
+  var max = Math.max.apply(null, entries.map(function(e){ return e[1]; }));
+  entries.forEach(function(entry) {
+    var label = entry[0], val = entry[1];
+    var pct = (val / max * 100).toFixed(1);
+    var row = document.createElement('div');
+    row.className = 'hbar-row';
+    row.innerHTML = '<span class="hbar-label" title="'+label+'">'+label+'</span>'
+      + '<div class="hbar-track"><div class="hbar-fill" style="width:'+pct+'%;background:'+color+'"></div></div>'
+      + '<span class="hbar-val">'+fmt(val)+'</span>';
+    row.addEventListener('mouseenter', function(e){ showTip(e, '<strong>'+label+'</strong><br>'+val.toLocaleString()); });
+    row.addEventListener('mousemove', function(e){ showTip(e, '<strong>'+label+'</strong><br>'+val.toLocaleString()); });
+    row.addEventListener('mouseleave', hideTip);
+    el.appendChild(row);
+  });
+}
+
+/* Condition stacked bar */
+var condData = CHART.bellefonte.conditions;
+var condOrder = ['excellent','good','fair','poor','fire damaged','damaged','n/a'];
+var condColors = { excellent:'var(--cond-excellent)', good:'var(--cond-good)', fair:'var(--cond-fair)', poor:'var(--cond-poor)', 'fire damaged':'var(--cond-poor)', damaged:'var(--cond-poor)', 'n/a':'var(--ink-muted)' };
+var condTotal = Object.values(condData).reduce(function(a,b){ return a+b; }, 0);
+var condBar = document.getElementById('cond-bar');
+var condLeg = document.getElementById('cond-legend');
+
+condOrder.forEach(function(key) {
+  if (!condData[key]) return;
+  var pct = (condData[key] / condTotal * 100).toFixed(1);
+  var seg = document.createElement('div');
+  seg.className = 'stacked-seg';
+  seg.style.width = pct + '%';
+  seg.style.background = condColors[key] || 'var(--ink-muted)';
+  seg.addEventListener('mouseenter', function(e){ showTip(e, '<strong>'+key+'</strong><br>'+condData[key]+' ('+pct+'%)'); });
+  seg.addEventListener('mousemove', function(e){ showTip(e, '<strong>'+key+'</strong><br>'+condData[key]+' ('+pct+'%)'); });
+  seg.addEventListener('mouseleave', hideTip);
+  condBar.appendChild(seg);
+});
+
+[
+  { key:'excellent', color:'var(--cond-excellent)' },
+  { key:'good', color:'var(--cond-good)' },
+  { key:'fair', color:'var(--cond-fair)' },
+  { key:'poor/damaged', color:'var(--cond-poor)' },
+].forEach(function(item) {
+  var li = document.createElement('span');
+  li.className = 'legend-item';
+  li.innerHTML = '<span class="legend-swatch" style="background:'+item.color+'"></span>'+item.key;
+  condLeg.appendChild(li);
+});
+
+/* Bar charts */
+var cs = getComputedStyle(document.documentElement);
+hbar('bf-styles', CHART.bellefonte.styles, cs.getPropertyValue('--s1').trim());
+hbar('ps-munis', CHART.pashare.municipalities, cs.getPropertyValue('--s1').trim());
+hbar('ps-elig', CHART.pashare.eligibility, cs.getPropertyValue('--s2').trim());
+hbar('vl-munis', CHART.vacant_lands.by_municipality, cs.getPropertyValue('--s3').trim());
+hbar('vl-zoning', CHART.vacant_lands.by_zoning, cs.getPropertyValue('--s3').trim());
+
+/* Poor properties table */
+var poorBody = document.querySelector('#poor-table tbody');
+var poorData = CHART.bellefonte.poor_properties;
+poorData.forEach(function(r) {
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td style="color:var(--ink);font-weight:500">'+r.address+'</td>'
+    + '<td><span class="cond-dot" style="background:var(--cond-poor)"></span>'+r.condition+'</td>'
+    + '<td>'+r.use+'</td><td>'+r.style+'</td><td>'+r.year+'</td>';
+  poorBody.appendChild(tr);
+});
+
+/* Underutilized buildings table */
+var ubBody = document.querySelector('#ub-table tbody');
+CHART.underutilized.forEach(function(r) {
+  var tr = document.createElement('tr');
+  var sq = r.sqft ? Number(r.sqft).toLocaleString() : '';
+  tr.innerHTML = '<td style="color:var(--ink);font-weight:500">'+r.name+'</td>'
+    + '<td>'+r.address+'</td><td>'+r.municipality+'</td><td>'+r.type+'</td>'
+    + '<td style="font-variant-numeric:tabular-nums;text-align:right">'+sq+'</td>'
+    + '<td>'+r.zoning+'</td>';
+  ubBody.appendChild(tr);
+});
+</script>
+</body>
+</html>
