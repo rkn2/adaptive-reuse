@@ -477,9 +477,9 @@ var condColor = {
   poor:'#d03b3b', 'fire damaged':'#d03b3b', damaged:'#d03b3b', 'n/a':'#898781'
 };
 
-var map = L.map('map').setView([40.913, -77.778], 14);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png', {
-  attribution: '&copy; OpenStreetMap contributors, &copy; CARTO',
+var map = L.map('map').setView([40.89, -77.85], 11);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   maxZoom: 19
 }).addTo(map);
 
@@ -544,6 +544,11 @@ L.control.layers(null, {
   'Underutilized buildings (8)': ubLayer,
   'Vacant lands (54)': vlLayer
 }, { collapsed: false }).addTo(map);
+
+var allPts = MAP_DATA.bellefonte.map(function(p){ return [p.lat, p.lng]; })
+  .concat(MAP_DATA.underutilized.map(function(p){ return [p.lat, p.lng]; }))
+  .concat(MAP_DATA.vacant_lands.map(function(p){ return [p.lat, p.lng]; }));
+if (allPts.length) map.fitBounds(allPts, { padding: [30, 30] });
 
 /* ---- charts ---- */
 function hbar(container, data, color) {
